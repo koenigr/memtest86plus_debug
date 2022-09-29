@@ -3,6 +3,8 @@ CC = gcc
 
 GIT = git
 
+DEBUG_S = 0
+
 ifeq ($(GIT),none)
   GIT_AVAILABLE = false
 else
@@ -11,6 +13,150 @@ endif
 
 CFLAGS = -std=c11 -Wall -Wextra -Wshadow -m64 -march=x86-64 -mno-mmx -mno-sse -mno-sse2 \
          -fpic -fno-builtin -ffreestanding -fomit-frame-pointer -fno-stack-protector
+
+ifeq ($(DEBUG_S), 1)
+  CFLAGS+=-ggdb3
+endif
+
+ifeq ($(DEBUG_OPT), 1)
+  OPT = -Og
+  OPT_SYSTEM = \
+  -faggressive-loop-optimizations  \
+  -fallocation-dce            	 \
+  -fasynchronous-unwind-tables 	 \
+  -fauto-inc-dec              	 \
+  -fbit-tests                 	 \
+  -fbranch-count-reg          	 \
+  -fcaller-saves              	 \
+  -fcode-hoisting             	 \
+  -fcombine-stack-adjustments 	 \
+  -fcompare-elim              	 \
+  -fcprop-registers           	 \
+  -fcrossjumping              	 \
+  -fcse-follow-jumps          	 \
+  -fdce                       	 \
+  -fdefer-pop                 	 \
+  -fdelete-null-pointer-checks 	 \
+  -fdevirtualize              	 \
+  -fdevirtualize-speculatively 	 \
+  -fdse                       	 \
+  -fearly-inlining            	 \
+  -fexpensive-optimizations   	 \
+  -fforward-propagate         	 \
+  -ffp-int-builtin-inexact    	 \
+  -ffunction-cse              	 \
+  -fgcse                      	 \
+  -fgcse-lm                   	 \
+  -fguess-branch-probability  	 \
+  -fhoist-adjacent-loads      	 \
+  -fif-conversion             	 \
+  -fif-conversion2            	 \
+  -findirect-inlining         	 \
+  -finline                    	 \
+  -finline-atomics            	 \
+  -finline-functions          	 \
+  -finline-functions-called-once  \
+  -finline-small-functions    	 \
+  -fipa-bit-cp                	 \
+  -fipa-cp                    	 \
+  -fipa-icf                   	 \
+  -fipa-icf-functions         	 \
+  -fipa-icf-variables         	 \
+  -fipa-modref                	 \
+  -fipa-profile               	 \
+  -fipa-pure-const            	 \
+  -fipa-ra                    	 \
+  -fipa-reference             	 \
+  -fipa-reference-addressable 	 \
+  -fipa-sra                   	 \
+  -fipa-stack-alignment       	 \
+  -fipa-vrp                   	 \
+  -fira-hoist-pressure        	 \
+  -fira-share-save-slots      	 \
+  -fira-share-spill-slots     	 \
+  -fisolate-erroneous-paths-dereference  \
+  -fivopts                    	 \
+  -fjump-tables               	 \
+  -flifetime-dse              	 \
+  -flra-remat                 	 \
+  -fmath-errno                	 \
+  -fmove-loop-invariants      	 \
+  -fomit-frame-pointer        	 \
+  -foptimize-sibling-calls    	 \
+  -fpartial-inlining          	 \
+  -fpeephole                  	 \
+  -fpeephole2                 	 \
+  -fplt                       	 \
+  -fprefetch-loop-arrays      	 \
+  -fprintf-return-value       	 \
+  -free                       	 \
+  -freg-struct-return         	 \
+  -frename-registers          	 \
+  -freorder-blocks            	 \
+  -freorder-blocks-and-partition  \
+  -freorder-functions         	 \
+  -frerun-cse-after-loop      	 \
+  -fsched-critical-path-heuristic  \
+  -fsched-dep-count-heuristic 	 \
+  -fsched-group-heuristic     	 \
+  -fsched-interblock          	 \
+  -fsched-last-insn-heuristic 	 \
+  -fsched-rank-heuristic      	 \
+  -fsched-spec                	 \
+  -fsched-spec-insn-heuristic 	 \
+  -fsched-stalled-insns-dep   	 \
+  -fschedule-fusion           	 \
+  -fschedule-insns2           	 \
+  -fshort-enums               	 \
+  -fshrink-wrap               	 \
+  -fshrink-wrap-separate      	 \
+  -fsigned-zeros              	 \
+  -fsplit-ivs-in-unroller     	 \
+  -fsplit-wide-types          	 \
+  -fssa-backprop              	 \
+  -fssa-phiopt                	 \
+  -fstack-clash-protection    	 \
+  -fstack-protector-strong    	 \
+  -fstdarg-opt                	 \
+  -fstore-merging             	 \
+  -fstrict-aliasing           	 \
+  -fstrict-volatile-bitfields 	 \
+  -fthread-jumps              	 \
+  -ftoplevel-reorder          	 \
+  -ftrapping-math             	 \
+  -ftree-bit-ccp              	 \
+  -ftree-builtin-call-dce     	 \
+  -ftree-ccp                  	 \
+  -ftree-ch                   	 \
+  -ftree-coalesce-vars        	 \
+  -ftree-copy-prop            	 \
+  -ftree-cselim               	 \
+  -ftree-dce                  	 \
+  -ftree-dominator-opts       	 \
+  -ftree-dse                  	 \
+  -ftree-forwprop             	 \
+  -ftree-fre                  	 \
+  -ftree-loop-distribute-patterns  \
+  -ftree-loop-if-convert      	 \
+  -ftree-loop-im              	 \
+  -ftree-loop-ivcanon         	 \
+  -ftree-loop-optimize        	 \
+  -ftree-phiprop              	 \
+  -ftree-pre                  	 \
+  -ftree-pta                  	 \
+  -ftree-reassoc              	 \
+  -ftree-scev-cprop           	 \
+  -ftree-sink                 	 \
+  -ftree-slsr                 	 \
+  -ftree-sra                  	 \
+  -ftree-switch-conversion    	 \
+  -ftree-tail-merge           	 \
+  -ftree-ter                  	 \
+  -ftree-vrp                  	 \
+  -fvar-tracking              	 \
+  -fvar-tracking-assignments  	 \
+  -fweb
+endif
 
 INC_DIRS = -I../boot -I../system -I../lib -I../tests -I../app -Iapp
 
@@ -66,6 +212,8 @@ APP_OBJS = app/badram.o \
 
 OBJS = boot/startup.o boot/efisetup.o $(SYS_OBJS) $(LIB_OBJS) $(TST_OBJS) $(APP_OBJS)
 
+debug: clean memtest.debug memtest.efi
+
 all: memtest.bin memtest.efi
 
 -include boot/efisetup.d
@@ -86,27 +234,27 @@ boot/%.o: ../boot/%.S ../boot/boot.h app/build_version.h
 
 boot/efisetup.o: ../boot/efisetup.c
 	@mkdir -p boot
-	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) $(OPT) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
 
 system/reloc.o: ../system/reloc64.c
 	@mkdir -p system
-	$(CC) -c $(CFLAGS) -fno-strict-aliasing -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+	$(CC) -c $(CFLAGS) -fno-strict-aliasing -Os $(INC_DIRS) $(OPT) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
 
 system/%.o: ../system/%.c
 	@mkdir -p system
-	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) $(OPT) $(OPT_SYSTEM) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
 
 lib/%.o: ../lib/%.c
 	@mkdir -p lib
-	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) $(OPT) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
 
 tests/%.o: ../tests/%.c
 	@mkdir -p tests
-	$(CC) -c $(CFLAGS) -O3 $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+	$(CC) -c $(CFLAGS) -O3 $(INC_DIRS) $(OPT) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
 
 app/%.o: ../app/%.c app/build_version.h
 	@mkdir -p app
-	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) $(OPT) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
 
 app/build_version.h: FORCE
 	@mkdir -p app
@@ -133,6 +281,10 @@ memtest_shared: $(OBJS) ldscripts/memtest_shared.lds Makefile
 
 memtest_shared.bin: memtest_shared
 	objcopy -O binary $< memtest_shared.bin
+
+memtest.debug: memtest_shared
+	objcopy --only-keep-debug memtest_shared memtest.debug
+	objcopy -S -O binary $< memtest_shared.bin
 
 memtest.bin: memtest_shared.bin boot/bootsect.o boot/setup.o ldscripts/memtest_bin.lds
 	$(eval SIZES=$(shell size -B -d memtest_shared | grep memtest_shared))
