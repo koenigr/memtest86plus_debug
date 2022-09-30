@@ -69,7 +69,7 @@ if ! dpkg -l ovmf > /dev/null 2>&1; then
 fi
 
 # Copy OVMF* files from /usr/share
-if [ ! -f OVMF.fd ] || [ ! -f OVMF_VARS.fd ] || [ ! -f PVMF_CODE.fd]
+if [ ! -f OVMF.fd ] || [ ! -f OVMF_VARS.fd ] || [ ! -f OVMF_CODE.fd ]
 then
   cp /usr/share/ovmf/OVMF.fd .
   cp /usr/share/OVMF/OVMF_CODE.fd .
