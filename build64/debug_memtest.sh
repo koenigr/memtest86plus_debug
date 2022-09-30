@@ -88,7 +88,7 @@ Make() {
 
 # Define offsets for loading of symbol-table
 IMAGEBASE=0x200000
-BASEOFCODE=0x10000
+BASEOFCODE=0x1000
 RELOCADDR=0x400000
 
 # Retrieve addresses from code (not used in this version)
