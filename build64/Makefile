@@ -18,6 +18,7 @@ ifeq ($(DEBUG_S), 1)
   CFLAGS+=-ggdb3
 endif
 
+# In Progress. This option must not be activated as the right flags are not chosen yet.
 ifeq ($(DEBUG_OPT), 1)
   OPT = -Og
   OPT_SYSTEM = \
@@ -212,9 +213,9 @@ APP_OBJS = app/badram.o \
 
 OBJS = boot/startup.o boot/efisetup.o $(SYS_OBJS) $(LIB_OBJS) $(TST_OBJS) $(APP_OBJS)
 
-debug: clean memtest.debug memtest.efi
-
 all: memtest.bin memtest.efi
+
+debug: clean memtest.debug memtest.efi
 
 -include boot/efisetup.d
 -include $(subst .o,.d,$(SYS_OBJS))
