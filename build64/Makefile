@@ -215,7 +215,7 @@ OBJS = boot/startup.o boot/efisetup.o $(SYS_OBJS) $(LIB_OBJS) $(TST_OBJS) $(APP_
 
 all: memtest.bin memtest.efi
 
-debug: clean memtest.debug memtest.efi
+debug: memtest.debug memtest.efi
 
 -include boot/efisetup.d
 -include $(subst .o,.d,$(SYS_OBJS))
