@@ -3,8 +3,6 @@ CC = gcc
 
 GIT = git
 
-DEBUG_S = 0
-
 ifeq ($(GIT),none)
   GIT_AVAILABLE = false
 else
@@ -14,12 +12,8 @@ endif
 CFLAGS = -std=c11 -Wall -Wextra -Wshadow -m64 -march=x86-64 -mno-mmx -mno-sse -mno-sse2 \
          -fpic -fno-builtin -ffreestanding -fomit-frame-pointer -fno-stack-protector
 
-ifeq ($(DEBUG_S), 1)
-  CFLAGS+=-ggdb3
-endif
-
-# In Progress. This option must not be activated as the right flags are not chosen yet.
-ifeq ($(DEBUG_OPT), 1)
+ifeq ($(DEBUG), 1)
+  CFLAGS+=-ggdb3 -DDEBUG
   OPT = -Og
   OPT_SYSTEM = \
   -faggressive-loop-optimizations  \
@@ -280,11 +274,12 @@ memtest_shared: $(OBJS) ldscripts/memtest_shared.lds Makefile
 	$(LD) -shared -Bsymbolic -T ldscripts/memtest_shared.lds -o $@ $(OBJS)
 
 memtest_shared.bin: memtest_shared
+	strip -R .eh_frame memtest_shared
+	strip -R .comment memtest_shared
 	objcopy -O binary $< memtest_shared.bin
 
 memtest.debug: memtest_shared
 	objcopy --only-keep-debug memtest_shared memtest.debug
-	objcopy -S -O binary $< memtest_shared.bin
 
 memtest.bin: memtest_shared.bin boot/bootsect.o boot/setup.o ldscripts/memtest_bin.lds
 	$(eval SIZES=$(shell size -B -d memtest_shared | grep memtest_shared))

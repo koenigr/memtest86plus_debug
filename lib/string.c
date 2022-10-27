@@ -43,6 +43,17 @@ int memcmp(const void *s1, const void *s2, size_t n)
     return 0;
 }
 
+#ifdef DEBUG
+void *memcpy (void *dest, const void *src, size_t len)
+{
+  char *d = dest;
+  const char *s = src;
+  while (len--)
+    *d++ = *s++;
+  return dest;
+}
+#endif
+
 void *memmove(void *dest, const void *src, size_t n)
 {
     char *d = (char *)dest, *s = (char *)src;
@@ -63,6 +74,16 @@ void *memmove(void *dest, const void *src, size_t n)
     }
     return dest;
 }
+
+#ifdef DEBUG
+void *memset (void *dest, int val, size_t len)
+{
+  unsigned char *ptr = dest;
+  while (len-- > 0)
+    *ptr++ = val;
+  return dest;
+}
+#endif
 
 size_t strlen(const char *s)
 {
