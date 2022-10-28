@@ -77,8 +77,8 @@ then
 fi
 
 Make() {
-    make debug DEBUG_S=1 DEBUG_OPT=0
-    ret_val=$?
+	make debug DEBUG
+	ret_val=$?
 
     if [[ $ret_val -ne 0 ]] ; then
     	echo "Make failed with return value: $ret_val"
@@ -99,7 +99,24 @@ Get_Offsets() {
     # TODO: get RELOCADDR
 }
 
-printf -v OFFSET "0x%X" $(($IMAGEBASE + $BASEOFCODE))
+
+Init() {
+
+	QEMU="qemu-system-x86_64"
+	QEMU_FLAGS=" -bios OVMF.fd"
+	QEMU_FLAGS+=" -hda fat:rw:hda-contents -net none"
+	QEMU_FLAGS+=" -drive if=pflash,format=raw,readonly=on,file=OVMF_CODE.fd"
+	QEMU_FLAGS+=" -drive if=pflash,format=raw,file=OVMF_VARS.fd"
+
+	GDB_FILE="gdbscript"
+
+	# Define offsets for loading of symbol-table
+	IMAGEBASE=0x200000
+	BASEOFCODE=0x1000
+	RELOCADDR=0x400000
+
+	printf -v OFFSET "0x%X" $(($IMAGEBASE + $BASEOFCODE))
+}
 
 # Build
 Make
@@ -141,5 +158,3 @@ fi
 # wait for connection via gdb
 gnome-terminal -- gdb -x $GDB_FILE &
 $QEMU $QEMU_FLAGS -s -S
-
-# TODO: Quit when gdb quits?

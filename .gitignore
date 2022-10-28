@@ -7,8 +7,9 @@
 # Object files
 *.o
 
-# Generated file
+# Generated files
 githash.h
+gdbscript
 
 # Binaries
 memtest_shared
@@ -18,10 +19,14 @@ memtest_shared.bin
 *.img
 *.iso
 *.mbr
+*.debug
 
 # Directories
 grub-iso
 html
 latex
+
+# OVMF
+OVMF*
 
 
