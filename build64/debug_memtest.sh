@@ -6,18 +6,28 @@
 ##
 
 Info() {
-    echo "Error: Invalid option"
-    echo "Type $0 -h for more information"
+	echo "Error: Invalid option"
+	echo "Type $0 -h for more information"
 }
 
 Help() {
-    echo "TODO Add description..."
-    echo
-    echo "Syntax: $0 [-h|c]"
-    echo "options:"
-    echo "h	print this help"
-    echo "c	delete all debugging related files"
-    echo
+	echo "TODO Add description..."
+	echo
+	echo "Syntax: $0 [-h|c]"
+	echo "options:"
+	echo "h	print this help"
+	echo "c	delete all debugging related files"
+	echo "t ..." # TODO
+	echo
+}
+
+Terminal_Help() {
+	echo "No terminal recognized. Please install x-terminal-emulator or gnome-terminal."
+	echo "Alternatively you can define your own terminal inclusive its execution command via:"
+	echo "./debug_script.sh -t \"<terminal> <execution_command>\""
+	echo "See following examples:"
+	echo "./debug_script.sh -t \"x-terminal-emulator -e \""
+	echo "./debug_script.sh -t \"gnome-terminal --  \""
 }
 
 Clear() {
@@ -33,7 +43,7 @@ Clear() {
     rm -f memtest_shared_debug.lds
 }
 
-while getopts ":hc" option; do
+while getopts ":hct:" option; do
 
 	case $option in
 		h) # display Help
@@ -62,33 +72,41 @@ while getopts ":hc" option; do
 
 done
 
+Check() {
+	# Check if QEMU and OVMF is installed
+	if ! dpkg -l qemu-system* > /dev/null 2>&1; then
+		echo "Qemu not installed"
+		exit 1
+	fi
 
-QEMU="qemu-system-x86_64"
-QEMU_FLAGS=" -bios OVMF.fd"
-QEMU_FLAGS+=" -hda fat:rw:hda-contents -net none"
-QEMU_FLAGS+=" -drive if=pflash,format=raw,readonly=on,file=OVMF_CODE.fd"
-QEMU_FLAGS+=" -drive if=pflash,format=raw,file=OVMF_VARS.fd"
+	if ! dpkg -l ovmf > /dev/null 2>&1; then
+		echo "Package ovmf not installed. Type 'sudo apt install ovmf'"
+		exit 1
+	fi
 
-GDB_FILE="gdbscript"
+	# Copy OVMF* files from /usr/share
+	if [ ! -f OVMF.fd ] || [ ! -f OVMF_VARS.fd ] || [ ! -f OVMF_CODE.fd ]; then
+		cp /usr/share/ovmf/OVMF.fd .
+		cp /usr/share/OVMF/OVMF_CODE.fd .
+		cp /usr/share/OVMF/OVMF_VARS.fd .
+	fi
 
-# Check if QEMU and OVMF is installed
-if ! dpkg -l qemu-system* > /dev/null 2>&1; then
-    echo "Qemu not installed"
-    exit 1
-fi
-
-if ! dpkg -l ovmf > /dev/null 2>&1; then
-    echo "Package ovmf not installed. Type 'sudo apt install ovmf'"
-    exit 1
-fi
-
-# Copy OVMF* files from /usr/share
-if [ ! -f OVMF.fd ] || [ ! -f OVMF_VARS.fd ] || [ ! -f OVMF_CODE.fd ]
-then
-  cp /usr/share/ovmf/OVMF.fd .
-  cp /usr/share/OVMF/OVMF_CODE.fd .
-  cp /usr/share/OVMF/OVMF_VARS.fd .
-fi
+	# Check for various terminals
+	# TODO do not define TERMINAL if already defined by commandline
+	if command -v x-terminal-emulator &> /dev/null; then
+		echo "x-terminal-emulator found"
+		TERMINAL="x-terminal-emulator -e "
+	elif command -v gnome-terminal &> /dev/null; then
+		echo "gnome-terminal found"
+		TERMINAL="gnome-terminal -- "
+	elif command -v xterm &> /dev/null; then
+		echo "xterm found"
+		TERMINAL="xterm -e "
+	else
+		Terminal_Help
+		exit 1
+	fi
+}
 
 	# Check for various terminals. Do not define TERMINAL if already defined by commandline
 	if [ -z $TERMINAL ]; then
@@ -114,25 +132,20 @@ Make() {
 	make debug DEBUG=1
 	ret_val=$?
 
-    if [[ $ret_val -ne 0 ]] ; then
-    	echo "Make failed with return value: $ret_val"
-    	exit 1
-    fi
+	if [[ $ret_val -ne 0 ]] ; then
+		echo "Make failed with return value: $ret_val"
+		exit 1
+	fi
 }
 
-# Define offsets for loading of symbol-table
-IMAGEBASE=0x200000
-BASEOFCODE=0x1000
-RELOCADDR=0x400000
 
 # Retrieve addresses from code (not used in this version)
-Get_Offsets() {
-    IMAGEBASE=$(grep -P '#define\tIMAGE_BASE' header.S | cut -f3)
-    BASEOFCODE=$(grep -P '#deinfe\tBASE_OF_CODE' header.S | cut -f3)
+# Get_Offsets() {
+# IMAGEBASE=$(grep -P '#define\tIMAGE_BASE' header.S | cut -f3)
+# BASEOFCODE=$(grep -P '#deinfe\tBASE_OF_CODE' header.S | cut -f3)
 
-    # TODO: get RELOCADDR
-}
-
+# TODO: get RELOCADDR
+# }
 
 Init() {
 
@@ -187,6 +200,12 @@ Prepare_Directory() {
     cp memtest.efi hda-contents/EFI/boot/BOOT_X64.efi
 }
 
+# Global checks
+Check
+
+# Initialize
+Init
+
 # Build
 Make
 
@@ -195,5 +214,5 @@ Prepare_Directory
 
 # Run QEMU and launch second terminal,
 # wait for connection via gdb
-gnome-terminal -- gdb -x $GDB_FILE &
+$TERMINAL gdb -x $GDB_FILE &
 $QEMU $QEMU_FLAGS -s -S
