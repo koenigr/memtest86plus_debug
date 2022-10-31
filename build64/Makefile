@@ -16,9 +16,11 @@ ifeq ($(DEBUG), 1)
  CFLAGS+=-ggdb3 -DDEBUG_GDB
  OPT_SMALL=-Og
  OPT_FAST=-Og
+ MS_LDS="memtest_shared_debug.lds"
 else
  OPT_SMALL=-Os
  OPT_FAST=-O3
+ MS_LDS="ldscripts/memtest_shared.lds"
 endif
 
 
@@ -144,9 +146,9 @@ FORCE:
 # Link it statically once so I know I don't have undefined symbols and
 # then link it dynamically so I have full relocation information.
 
-memtest_shared: $(OBJS) ldscripts/memtest_shared.lds Makefile
-	$(LD) --warn-constructors --warn-common -static -T ldscripts/memtest_shared.lds -o $@ $(OBJS) && \
-	$(LD) -shared -Bsymbolic -T ldscripts/memtest_shared.lds -o $@ $(OBJS)
+memtest_shared: $(OBJS) $(MS_LDS) Makefile
+	$(LD) --warn-constructors --warn-common -static -T $(MS_LDS) -o $@ $(OBJS) && \
+	$(LD) -shared -Bsymbolic -T $(MS_LDS) -o $@ $(OBJS)
 
 memtest_shared.bin: memtest_shared
 	objcopy -O binary $< memtest_shared.bin
