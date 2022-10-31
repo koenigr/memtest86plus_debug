@@ -30,21 +30,35 @@ Clear() {
     rm -f OVMF.fd
     rm -f OVMF_VARS.fd
     rm -f OVMF_CODE.fd
+    rm -f memtest_shared_debug.lds
 }
 
 while getopts ":hc" option; do
 
-    case $option in
-        h) # display Help
-	    Help
-	    exit;;
-	c) # clear directory
-	    Clear
-	    exit;;
-       \?) # invalid option
-	    Info
-	    exit;;
-    esac
+	case $option in
+		h) # display Help
+			Help
+			exit;;
+		c) # clear directory
+			Clear
+			exit;;
+		t) # define own terminal
+			echo "argument -t called with parameter $OPTARG" >&2
+            if [ $OPTARG = "help" ]; then
+                Terminal_Help
+                exit 0
+            fi
+			TERMINAL="$OPTARG"
+			if ! $TERMINAL ls; then
+				echo "Your entered command is not valid. Please check it again"
+                echo "Or type \"./debug_memtest.sh -t help\" for help"
+				exit 1
+			fi
+			exit;;
+        \?) # invalid option
+            Info
+            exit;;
+	esac
 
 done
 
@@ -76,8 +90,28 @@ then
   cp /usr/share/OVMF/OVMF_VARS.fd .
 fi
 
+	# Check for various terminals. Do not define TERMINAL if already defined by commandline
+	if [ -z $TERMINAL ]; then
+		if command -v x-terminal-emulator &> /dev/null; then
+			echo "x-terminal-emulator found"
+			TERMINAL="x-terminal-emulator -e "
+		elif command -v gnome-terminal &> /dev/null; then
+			echo "gnome-terminal found"
+			TERMINAL="gnome-terminal -- "
+		elif command -v xterm &> /dev/null; then
+			echo "xterm found"
+			TERMINAL="xterm -e "
+		else
+            echo "No terminal recognized. Please install x-terminal-emulator or gnome-terminal or xterm."
+            echo "Or define your own terminal alternatively."
+			Terminal_Help
+			exit 1
+		fi
+	fi
+}
+
 Make() {
-	make debug DEBUG
+	make debug DEBUG=1
 	ret_val=$?
 
     if [[ $ret_val -ne 0 ]] ; then
@@ -109,6 +143,29 @@ Init() {
 	QEMU_FLAGS+=" -drive if=pflash,format=raw,file=OVMF_VARS.fd"
 
 	GDB_FILE="gdbscript"
+    # TODO Check if gdbscript exists - if yes do not create it
+    if [ ! -f $GDB_FILE ]
+    then
+        echo "Creating gdbscript.."
+
+        echo "set pagination off" > $GDB_FILE
+
+        echo "add-symbol-file memtest.debug $OFFSET" >> $GDB_FILE
+        echo "add-symbol-file memtest.debug $RELOCADDR" >> $GDB_FILE
+
+        echo "b main" >> $GDB_FILE
+        echo "commands" >> $GDB_FILE
+        echo "layout src" >> $GDB_FILE
+        echo "delete 1" >> $GDB_FILE
+        echo "end" >> $GDB_FILE
+
+        echo "b run_at" >> $GDB_FILE
+
+        echo "shell sleep 0.5" >> $GDB_FILE # TODO remove if time is enough until qemu starts
+        echo "target remote localhost:1234" >> $GDB_FILE
+        echo "info b" >> $GDB_FILE
+        echo "c" >> $GDB_FILE
+    fi
 
 	# Define offsets for loading of symbol-table
 	IMAGEBASE=0x200000
@@ -116,43 +173,25 @@ Init() {
 	RELOCADDR=0x400000
 
 	printf -v OFFSET "0x%X" $(($IMAGEBASE + $BASEOFCODE))
+
+	sed '/DISCARD/d' ldscripts/memtest_shared.lds > memtest_shared_debug.lds
+
+}
+
+Prepare_Directory() {
+    # Create dir hda-contents
+    mkdir -p hda-contents/EFI/boot
+
+    # Copy memtest.efi to hda-contents
+    cp memtest.efi hda-contents/
+    cp memtest.efi hda-contents/EFI/boot/BOOT_X64.efi
 }
 
 # Build
 Make
 
-# Create dir hda-contents
-mkdir -p hda-contents/EFI/boot
-
-# Copy memtest.efi to hda-contents
-cp memtest.efi hda-contents/
-cp memtest.efi hda-contents/EFI/boot/BOOT_X64.efi
-
-# TODO Check if gdbscript exists - then do not create it
-
-if [ ! -f $GDB_FILE ]
-then
-    echo "Creating gdbscript.."
-
-    echo "set pagination off" > $GDB_FILE
-
-    echo "add-symbol-file memtest.debug $OFFSET" >> $GDB_FILE
-    echo "add-symbol-file memtest.debug $RELOCADDR" >> $GDB_FILE
-
-    echo "b main" >> $GDB_FILE
-    echo "commands" >> $GDB_FILE
-    echo "layout src" >> $GDB_FILE
-    echo "delete 1" >> $GDB_FILE
-    echo "end" >> $GDB_FILE
-
-    echo "b run_at" >> $GDB_FILE
-
-    echo "shell sleep 0.5" >> $GDB_FILE # TODO remove if time is enough until qemu starts
-    echo "target remote localhost:1234" >> $GDB_FILE
-    echo "info b" >> $GDB_FILE
-    echo "c" >> $GDB_FILE
-
-fi
+# Create needed directories and move efi binary to appropriate location
+Prepare_Directory
 
 # Run QEMU and launch second terminal,
 # wait for connection via gdb

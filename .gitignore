@@ -10,6 +10,7 @@
 # Generated file
 build_version.h
 gdbscript
+memtest_shared_debug.lds
 
 # Binaries
 memtest_shared
