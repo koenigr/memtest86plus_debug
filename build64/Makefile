@@ -78,7 +78,13 @@ OBJS = boot/startup.o boot/efisetup.o $(SYS_OBJS) $(LIB_OBJS) $(TST_OBJS) $(APP_
 
 all: memtest.bin memtest.efi
 
-debug: memtest.debug memtest.efi
+check:
+	@if [ -z ${DEBUG} ]; then\
+		echo "Macro DEBUG is not defined. Run debug_memtest.sh to invoke debug target";\
+		exit 1;\
+	fi
+
+debug: check memtest.debug memtest.efi
 
 -include boot/efisetup.d
 -include $(subst .o,.d,$(SYS_OBJS))
