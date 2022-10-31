@@ -12,12 +12,8 @@ endif
 CFLAGS = -std=c11 -Wall -Wextra -Wshadow -m64 -march=x86-64 -mno-mmx -mno-sse -mno-sse2 \
          -fpic -fno-builtin -ffreestanding -fomit-frame-pointer -fno-stack-protector
 
-# ifeq ($(DEBUG), 1)
-#   CFLAGS+=-ggdb3 -DDEBUG
-#   OPT = -Og
-# endif
-
 ifeq ($(DEBUG), 1)
+ CFLAGS+=-ggdb3 -DDEBUG_GDB
  OPT_SMALL=-Og
  OPT_FAST=-Og
 else
