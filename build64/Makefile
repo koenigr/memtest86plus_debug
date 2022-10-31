@@ -16,11 +16,11 @@ ifeq ($(DEBUG), 1)
  CFLAGS+=-ggdb3 -DDEBUG_GDB
  OPT_SMALL=-Og
  OPT_FAST=-Og
- MS_LDS="memtest_shared_debug.lds"
+ MS_LDS=memtest_shared_debug.lds
 else
  OPT_SMALL=-Os
  OPT_FAST=-O3
- MS_LDS="ldscripts/memtest_shared.lds"
+ MS_LDS=ldscripts/memtest_shared.lds
 endif
 
 
