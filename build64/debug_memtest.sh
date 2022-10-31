@@ -13,21 +13,21 @@ Info() {
 Help() {
 	echo "TODO Add description..."
 	echo
-	echo "Syntax: $0 [-h|c]"
+	echo "Syntax: $0 [-h|c|t <terminal><execution_command>]"
 	echo "options:"
 	echo "h	print this help"
 	echo "c	delete all debugging related files"
-	echo "t ..." # TODO
+	echo "t define alternative terminal"
 	echo
 }
 
 Terminal_Help() {
-	echo "No terminal recognized. Please install x-terminal-emulator or gnome-terminal."
-	echo "Alternatively you can define your own terminal inclusive its execution command via:"
+	echo "You can define your own terminal inclusive its execution command via:"
 	echo "./debug_script.sh -t \"<terminal> <execution_command> \""
 	echo "See following examples:"
 	echo "./debug_script.sh -t \"x-terminal-emulator -e \""
 	echo "./debug_script.sh -t \"gnome-terminal --  \""
+    echo ".debug_script.sh -t \"xterm -e \""
 }
 
 Clear() {
@@ -84,29 +84,23 @@ Check() {
 		exit 1
 	fi
 
-	# Copy OVMF* files from /usr/share
-	if [ ! -f OVMF.fd ] || [ ! -f OVMF_VARS.fd ] || [ ! -f OVMF_CODE.fd ]; then
-		cp /usr/share/ovmf/OVMF.fd .
-		cp /usr/share/OVMF/OVMF_CODE.fd .
-		cp /usr/share/OVMF/OVMF_VARS.fd .
-	fi
-
-	# Check for various terminals
-	# TODO do not define TERMINAL if already defined by commandline
-	if command -v x-terminal-emulator &> /dev/null; then
-		echo "x-terminal-emulator found"
-		TERMINAL="x-terminal-emulator -e "
-	elif command -v gnome-terminal &> /dev/null; then
-		echo "gnome-terminal found"
-		TERMINAL="gnome-terminal -- "
-	elif command -v xterm &> /dev/null; then
-		echo "xterm found"
-		TERMINAL="xterm -e "
-	else
-        echo "No terminal recognized. Please install x-terminal-emulator or gnome-terminal or xterm."
-        echo "Or define your own terminal alternatively."
-		Terminal_Help
-		exit 1
+	# Check for various terminals. Do not define TERMINAL if already defined by commandline
+	if [ -z $TERMINAL ]; then
+		if command -v x-terminal-emulator &> /dev/null; then
+			echo "x-terminal-emulator found"
+			TERMINAL="x-terminal-emulator -e "
+		elif command -v gnome-terminal &> /dev/null; then
+			echo "gnome-terminal found"
+			TERMINAL="gnome-terminal -- "
+		elif command -v xterm &> /dev/null; then
+			echo "xterm found"
+			TERMINAL="xterm -e "
+		else
+            echo "No terminal recognized. Please install x-terminal-emulator or gnome-terminal or xterm."
+            echo "Or define your own terminal alternatively."
+			Terminal_Help
+			exit 1
+		fi
 	fi
 }
 
@@ -180,6 +174,13 @@ Prepare_Directory() {
     # Copy memtest.efi to hda-contents
     cp memtest.efi hda-contents/
     cp memtest.efi hda-contents/EFI/boot/BOOT_X64.efi
+
+    # Copy OVMF* files from /usr/share
+    if [ ! -f OVMF.fd ] || [ ! -f OVMF_VARS.fd ] || [ ! -f OVMF_CODE.fd ]; then
+        cp /usr/share/ovmf/OVMF.fd .
+        cp /usr/share/OVMF/OVMF_CODE.fd .
+        cp /usr/share/OVMF/OVMF_VARS.fd .
+    fi
 }
 
 # Global checks
