@@ -5,10 +5,6 @@ It calls the `make debug` target of a modified Makefile to create an additional 
 The symbols of this file are loaded with an offset (in accordance with the loading location of the efi-image) into GDB to match the exact addresses of the symbols in memory.
 
 
-##	Motivation
-
-todo
-
 ##	Prerequisites
 
 * this approach was tested on Ubuntu 18.04 - 22.04
@@ -18,7 +14,15 @@ todo
 ##	How to run
 
 * navigate to build64 directory
-* run `debug_memtest.sh`
+* run `./debug_memtest.sh`
+* or type `./debug_memtest.sh -h` for help
+
+### Remarks - create own gdbscript
+
+It is possible to provide an own gdb-script. Name it 'gdbscript' and place it in the build64 directory.
+This script will automatically be loaded when gdb starts.
+!! But be careful when cleaning the directory by './debug_memtest.sh -c'. It also removes 'gdbscript'.
+!! Make sure that you have made a copy of 'gdbscript' when running this command.
 
 ##	Navigate inside Qemu/UEFI
 
@@ -45,15 +49,17 @@ created by the debug-script.
 When you run the script the next time, memtest.efi should run without
 previous user interaction.
 
+!! But be careful when cleaning the directory by './debug_memtest.sh -c'. It also removes this setting.
+!! Make sure that you have made a copy of 'OVMF*'-files when running this command.
+
 ##	Clean directory
+
+'debug_memtest.sh' has an own clean procedure which cleans additional files not mentioned in Makefile's
+'make clean' target. When you run this command, make sure that you have saved 'gdbscript' and/or OVMF* files if there are custom changes.
 
 To clean the directory, type `./debug_memtest.sh -c`
 
 ##	Possible features/alternatives and further considerations
-
-###	Optimization
-
-The current gcc-optimization level for each object is object is the level defined in the original Makefile (-O3 or -Os). It is not possible to set the compilation of all objects to -Og (the ideal optimization level for debugging with gdb) as the compilation of some classes failes with -Og. Try to find the concrete flag which makes the compilation succeed.
 
 ###	Detection of Image Base 
 
@@ -89,11 +95,3 @@ TODO: Is it possible to deactivate relocation? E.g. by outcommenting some code o
 * FOLLOW RELOCATION
 
 If the position after relocation is expected to be always the same, then you can just load the symbol table twice. This is done in debug_memtest_simple.sh (the offsets are 0x201000 and 0x400000). If the locations can vary then the offsets must be determined dynamically ... todo: how?
-
-###	Build process
-
-The creation of the debug symbol table is realized by calling `make debug` with a modified Makefile. If a modification of the Makefile is not desired, it is also possible to imitate the build procedure directly in the debug-script. But this means to adjust the build procedure every time when the procedure of the original Makefile changes.
-
-###	Alternatives to gnome-terminal
-
-Todo: add alternatives to gnome-terminal, if gnome-terminal is not installed
