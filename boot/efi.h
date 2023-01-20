@@ -44,12 +44,22 @@
 /**
  * EFI_MEMORY_TYPE values.
  */
-#define EFI_LOADER_CODE         1
-#define EFI_LOADER_DATA         2
-#define EFI_BOOT_SERVICES_CODE  3
-#define EFI_BOOT_SERVICES_DATA  4
-#define EFI_CONVENTIONAL_MEMORY 7
-#define EFI_ACPI_RECLAIM_MEMORY 9
+#define EFI_RESERVED_TYPE               0
+#define EFI_LOADER_CODE                 1
+#define EFI_LOADER_DATA                 2
+#define EFI_BOOT_SERVICES_CODE          3
+#define EFI_BOOT_SERVICES_DATA          4
+#define EFI_RUNTIME_SERVICES_CODE       5
+#define EFI_RUNTIME_SERVICES_DATA       6
+#define EFI_CONVENTIONAL_MEMORY         7
+#define EFI_UNUSABLE_MEMORY             8
+#define EFI_ACPI_RECLAIM_MEMORY         9
+#define EFI_ACPI_MEMORY_NVS             10
+#define EFI_MEMORY_MAPPED_IO            11
+#define EFI_MEMORY_MAPPED_IO_PORT_SPACE 12
+#define EFI_PAL_CODE                    13
+#define EFI_PERSISTENT_MEMORY           14
+#define EFI_MAX_MEMORY_TYPE             15
 
 /**
  * EFI_RESET_TYPE values.
