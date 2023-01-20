@@ -591,9 +591,13 @@ static void set_e820_map(boot_params_t *params)
             e820_type = E820_ACPI;
             break;
           case EFI_LOADER_CODE:
+            e820_type = E820_RESERVED;
           case EFI_LOADER_DATA:
+            e820_type = E820_RESERVED;
           case EFI_BOOT_SERVICES_CODE:
+            e820_type = E820_RESERVED;
           case EFI_BOOT_SERVICES_DATA:
+            e820_type = E820_RESERVED;
           case EFI_CONVENTIONAL_MEMORY:
             e820_type = E820_RAM;
             break;
