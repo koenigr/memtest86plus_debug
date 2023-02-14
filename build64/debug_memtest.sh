@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash -x
 
 
 ###############################################################################
@@ -81,6 +81,12 @@ Check() {
 	if [ ! -f OVMF.fd ] && [ ! -f /usr/share/ovmf/OVMF.fd ]; then
 		echo "Package ovmf not installed. Type 'sudo apt install ovmf'."
 		echo "Or copy your own versions of OVMF.fd, OVMF_VARS.fd and OVMF_CODE.fd into this directory"
+		exit 1
+	fi
+
+	# Check if gdb is installed
+	if ! command -v gdb > /dev/null 2>&1; then
+		echo "GDB not installed"
 		exit 1
 	fi
 
