@@ -1,0 +1,261 @@
+All defined variables:
+
+File ../app/badram.c:
+59:	static int num_patterns;
+58:	static pattern_t pattern[10];
+
+File ../app/config.c:
+83:	cpu_mode_t cpu_mode;
+87:	cpu_state_t cpu_state[256];
+98:	_Bool enable_bench;
+97:	_Bool enable_sm;
+94:	_Bool enable_temperature;
+95:	_Bool enable_trace;
+104:	_Bool enable_tty;
+85:	error_mode_t error_mode;
+90:	_Bool exclude_ecores;
+89:	core_type_t hybrid_core_type[256];
+81:	uintptr_t num_pages_to_test;
+100:	_Bool pause_at_start;
+78:	uintptr_t pm_limit_lower;
+79:	uintptr_t pm_limit_upper;
+102:	power_save_t power_save;
+92:	_Bool smp_enabled;
+106:	int tty_params_baud;
+105:	int tty_params_port;
+107:	int tty_update_period;
+72:	static uint16_t popup_save_buffer[684];
+
+File ../app/display.c:
+75:	_Bool big_status_displayed;
+86:	display_mode_t display_mode;
+84:	int max_cpu_temp;
+82:	int scroll_message_row;
+52:	static const char *cpu_mode_str[3];
+70:	static uint64_t next_spin_time;
+66:	static int pass_bar_length;
+63:	static int pass_ticks;
+76:	static uint16_t popup_status_save_buffer[396];
+72:	static int prev_sec;
+69:	static uint64_t run_start_time;
+58:	static _Bool scroll_lock;
+59:	static _Bool scroll_wait;
+61:	static int spin_idx;
+50:	static const char spin_state[4];
+67:	static int test_bar_length;
+64:	static int test_ticks;
+73:	static _Bool timed_update_done;
+
+File ../app/error.c:
+74:	uint64_t error_count;
+68:	static error_info_t error_info;
+66:	static error_mode_t last_error_mode;
+
+File ../app/interrupt.c:
+41:	static const char *codes[20];
+
+File ../app/main.c:
+123:	_Bool bail;
+103:	uint8_t chunk_index[256];
+112:	spinlock_t *error_mutex;
+108:	int master_cpu;
+105:	int num_active_cpus;
+106:	int num_enabled_cpus;
+117:	int pass_num;
+122:	_Bool restart;
+110:	barrier_t *run_barrier;
+125:	uintptr_t test_addr[256];
+118:	int test_num;
+114:	vm_map_t vm_map[127];
+115:	int vm_map_size;
+120:	int window_num;
+88:	static _Bool dummy_run;
+79:	static uintptr_t high_load_addr;
+76:	static volatile int init_state;
+78:	static uintptr_t low_load_addr;
+93:	static size_t num_mapped_pages;
+86:	static _Bool rerun_test;
+81:	static barrier_t *start_barrier;
+84:	static _Bool start_pass;
+83:	static _Bool start_run;
+85:	static _Bool start_test;
+95:	static int test_stage;
+91:	static uintptr_t window_end;
+90:	static uintptr_t window_start;
+
+File ../boot/efisetup.c:
+34:	static efi_guid_t EFI_CONSOLE_OUT_DEVICE_GUID;
+35:	static efi_guid_t EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+36:	static efi_guid_t EFI_LOADED_IMAGE_PROTOCOL_GUID;
+38:	static efi_system_table_t *sys_table;
+
+File ../system/acpi.c:
+92:	acpi_t acpi_config;
+90:	const char *rsdp_source;
+83:	static const efi_guid_t EFI_ACPI_1_RDSP_GUID;
+84:	static const efi_guid_t EFI_ACPI_2_RDSP_GUID;
+
+File ../system/cpuid.c:
+16:	cpuid_info_t cpuid_info;
+
+File ../system/cpuinfo.c:
+57:	uint32_t clks_per_msec;
+42:	const char *cpu_model;
+44:	uint16_t imc_type;
+46:	int l1_cache;
+50:	uint32_t l1_cache_speed;
+47:	int l2_cache;
+51:	uint32_t l2_cache_speed;
+48:	int l3_cache;
+52:	uint32_t l3_cache_speed;
+55:	_Bool no_temperature;
+53:	uint32_t ram_speed;
+
+File ../system/cpulocal.c:
+14:	int local_bytes_used;
+
+File ../system/ehci.c:
+473:	static const hcd_methods_t methods;
+
+File ../system/font.c:
+8:	const uint8_t font_data[256][16];
+
+File ../system/heap.c:
+27:	static heap_t heaps[2];
+
+File ../system/hwctrl.c:
+27:	static efi_runtime_services_t *efi_rs_table;
+
+File ../system/hwquirks.c:
+17:	quirk_t quirk;
+
+File ../system/jedec_id.h:
+18:	static const struct spd_jedec_manufacturer jep106[134];
+
+File ../system/keyboard.c:
+217:	keyboard_types_t keyboard_types;
+21:	static const char legacy_keymap[84];
+109:	static const char usb_hid_keymap[101];
+
+File ../system/ohci.c:
+393:	static const hcd_methods_t methods;
+
+File ../system/pci.c:
+49:	static pci_config_type_t pci_config_type;
+
+File ../system/pmem.c:
+40:	size_t num_pm_pages;
+36:	pm_map_t pm_map[127];
+38:	int pm_map_size;
+
+File ../system/screen.c:
+47:	vga_buffer_t shadow_buffer;
+56:	static uint8_t current_attr;
+51:	static uintptr_t lfb_base;
+49:	static int lfb_bytes_per_pixel;
+54:	static uint32_t lfb_pallete[16];
+52:	static uintptr_t lfb_stride;
+149:	static void (*put_char)(int, int, uint8_t, uint8_t);
+45:	static vga_buffer_t *vga_buffer;
+25:	static const rgb_value_t vga_pallete[16];
+
+File ../system/serial.c:
+16:	static struct serial_port console_serial;
+
+File ../system/serial.h:
+22:	static const uint16_t serial_base_ports[4];
+
+File ../system/smbios.c:
+26:	struct baseboard_info *dmi_baseboard_info;
+27:	struct mem_dev *dmi_memory_device;
+25:	struct system_info *dmi_system_info;
+20:	static const efi_guid_t SMBIOS2_GUID;
+18:	static uint32_t table_length;
+17:	static const uint8_t *table_start;
+
+File ../system/smbus.c:
+21:	ram_info ram;
+23:	int smbdev;
+23:	int smbfun;
+25:	uint32_t smbus_id;
+24:	unsigned short smbusbase;
+26:	static uint16_t extra_initial_sleep_for_smb_transaction;
+1077:	static const uint16_t intel_ich5_dids[59];
+29:	static int8_t last_adr;
+28:	static int8_t spd_page;
+
+File ../system/smp.c:
+234:	int num_available_cpus;
+228:	static uintptr_t alloc_addr;
+220:	static apic_register_t *apic;
+222:	static uint8_t apic_id_to_cpu_num[256];
+224:	static uint8_t cpu_num_to_apic_id[256];
+226:	static uintptr_t smp_heap_page;
+
+File ../system/uhci.c:
+407:	static const hcd_methods_t methods;
+
+File ../system/usbhcd.c:
+83:	usb_init_options_t usb_init_options;
+48:	static const char *hci_name[4];
+50:	static const hcd_methods_t methods;
+74:	static int num_usb_controllers;
+77:	static int print_col;
+76:	static int print_row;
+63:	static usb_hcd_t usb_controllers[8];
+
+File ../system/vmem.c:
+44:	static unsigned int device_pages_used;
+46:	static uintptr_t mapped_window;
+
+File ../system/xhci.c:
+897:	static const hcd_methods_t methods;
+
+File ../tests/tests.c:
+51:	test_pattern_t test_list[11];
+70:	int ticks_per_pass[2];
+71:	int ticks_per_test[2][11];
+
+Non-debugging symbols:
+0x00000000000184a0  suffix
+0x0000000000021530  _DYNAMIC
+0x0000000000023000  _data
+0x0000000000025000  pd0
+0x0000000000026000  pd1
+0x0000000000029008  startup_mutex
+0x000000000002900c  first_boot
+0x0000000000029080  last_stage
+0x0000000000029084  last_stage
+0x0000000000029d80  _GLOBAL_OFFSET_TABLE_
+0x0000000000029dc8  _edata
+0x0000000000029de0  _bss
+0x0000000000029de0  startup_stack_base
+0x0000000000029e20  startup_stack_top
+0x0000000000029f8c  escaped
+0x000000000002a7b0  last_load_addr
+0x000000000002b7c0  s
+0x000000000002ba80  offset
+0x00000000000184a0  suffix
+0x0000000000021530  _DYNAMIC
+0x0000000000023000  _data
+0x0000000000025000  pd0
+0x0000000000026000  pd1
+0x0000000000029008  startup_mutex
+0x000000000002900c  first_boot
+0x0000000000029080  last_stage
+0x0000000000029084  last_stage
+0x0000000000029d80  _GLOBAL_OFFSET_TABLE_
+0x0000000000029dc8  _edata
+0x0000000000029de0  _bss
+0x0000000000029de0  startup_stack_base
+0x0000000000029e20  startup_stack_top
+0x0000000000029f8c  escaped
+0x000000000002a7b0  last_load_addr
+0x000000000002b7c0  s
+0x000000000002ba80  offset
+Name       Lines Columns Focus      
+src           15      80            
+status         1      80            
+cmd            8      80 (has focus) 
+warning: Error detected on fd 0
+error detected on stdin
