@@ -33,6 +33,11 @@ typedef struct __attribute__ ((packed)) {
     bool        pm_is_io;
 } acpi_t;
 
+typedef struct __attribute__ ((packed)) {
+    uint8_t     test_int;
+} test;
+
+
 /**
  * The search step that located the ACPI RSDP (for debug).
  */
@@ -42,6 +47,8 @@ extern const char *rsdp_source;
  * Global ACPI config struct
  */
 extern acpi_t acpi_config;
+
+extern test test_struct;
 
 /**
  * ACPI Table Checksum Function

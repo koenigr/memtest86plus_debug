@@ -152,11 +152,13 @@ static void run_at(uintptr_t addr, int my_cpu)
 {
     uintptr_t *new_start_addr = (uintptr_t *)(addr + startup - _start);
 
-    uintptr_t acp = &acpi_config;
+    uintptr_t acp = (uintptr_t) &acpi_config;
 
     prints(15, 0, "Get Address of acpi_config variable and save it in a local");
     printf(16, 0, "%x", (uintptr_t)(&acpi_config));
     printf(17, 0, "%x", (uintptr_t)(acp));
+    printf(18, 0, "%x", (uintptr_t)(&num_enabled_cpus));
+    printf(19, 0, "%x", (uintptr_t)(&test_struct));
 
     if (my_cpu == 0) {
         // Copy the program code and all data except the stacks.

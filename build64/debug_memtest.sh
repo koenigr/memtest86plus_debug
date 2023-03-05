@@ -140,10 +140,11 @@ Init() {
 	# Define offsets for loading of symbol-table
 	IMAGEBASE=0x200000
 	BASEOFCODE=0x1000
+	DATA=0x24000
 	RELOCADDR=0x400000
 
 	printf -v OFFSET "0x%X" $(($IMAGEBASE + $BASEOFCODE))
-
+	printf -v DATAOFF "0x%X" $(($IMAGEBASE + $DATA))
 
 	GDB_FILE="gdbscript"
 
@@ -159,7 +160,7 @@ Init() {
         	exit 1
         fi
 
-        echo "add-symbol-file memtest.debug $OFFSET" >> $GDB_FILE
+        echo "add-symbol-file memtest.debug $OFFSET -s .data $DATAOFF" >> $GDB_FILE
         echo "add-symbol-file memtest.debug $RELOCADDR" >> $GDB_FILE
 
         echo "b main" >> $GDB_FILE

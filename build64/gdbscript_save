@@ -1,0 +1,13 @@
+set pagination off
+add-symbol-file memtest.debug 0x201000 -s data 0x201010
+add-symbol-file memtest.debug 0x400000
+b main
+commands
+layout src
+delete 1
+end
+b run_at
+shell sleep 0.5
+target remote localhost:1234
+info b
+c
