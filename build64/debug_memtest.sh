@@ -175,6 +175,18 @@ Init() {
         echo "target remote localhost:1234" >> $GDB_FILE
         echo "info b" >> $GDB_FILE
         echo "c" >> $GDB_FILE
+        echo "c" >> $GDB_FILE
+		echo "n" >> $GDB_FILE
+		echo "n" >> $GDB_FILE
+		echo "n" >> $GDB_FILE
+		echo "n" >> $GDB_FILE
+		echo "n" >> $GDB_FILE
+		echo "n" >> $GDB_FILE
+		echo "n" >> $GDB_FILE
+		echo "n" >> $GDB_FILE
+		echo "p &acpi_config" >> $GDB_FILE
+		echo "p &num_enabled_cpus" >> $GDB_FILE
+		echo "p &test_struct" >> $GDB_FILE
     fi
 
 	if [ ! -f ldscripts/memtest_shared.lds ]; then
