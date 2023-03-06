@@ -259,3 +259,399 @@ status         1      80
 cmd            8      80 (has focus) 
 warning: Error detected on fd 0
 error detected on stdin
+add symbol table from file "memtest.debug" at
+	.text_addr = 0x400000
+	.data_addr = 0x423000
+add symbol table from file "memtest.debug" at
+	.text_addr = 0x201000
+	.data_addr = 0x224000
+Breakpoint 1 at 0x2171a7: main. (2 locations)
+Breakpoint 2 at 0x216af1: run_at. (2 locations)
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+0x000000000000fff0 in ?? ()
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   <MULTIPLE>         
+        layout src
+        delete 1
+1.1                         y     0x00000000002171a7 in main at ../app/main.c:508
+1.2                         y     0x00000000004161a7 in main at ../app/main.c:508
+2       breakpoint     keep y   <MULTIPLE>         
+2.1                         y     0x0000000000216af1 in run_at at ../app/main.c:152
+2.2                         y     0x0000000000415af1 in run_at at ../app/main.c:152
+
+Breakpoint 1, main () at ../app/main.c:508
+508	{
+152	{
+Remote connection closed
+add symbol table from file "memtest.debug" at
+	.text_addr = 0x400000
+	.data_addr = 0x423000
+add symbol table from file "memtest.debug" at
+	.text_addr = 0x201000
+	.data_addr = 0x224000
+Breakpoint 1 at 0x2171a7: main. (2 locations)
+Breakpoint 2 at 0x216af1: run_at. (2 locations)
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+0x000000000000fff0 in ?? ()
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   <MULTIPLE>         
+        layout src
+        delete 1
+1.1                         y     0x00000000002171a7 in main at ../app/main.c:508
+1.2                         y     0x00000000004161a7 in main at ../app/main.c:508
+2       breakpoint     keep y   <MULTIPLE>         
+2.1                         y     0x0000000000216af1 in run_at at ../app/main.c:152
+2.2                         y     0x0000000000415af1 in run_at at ../app/main.c:152
+
+Breakpoint 1, main () at ../app/main.c:508
+508	{
+Remote connection closed
+add symbol table from file "memtest.debug" at
+	.text_addr = 0x400000
+	.data_addr = 0x423000
+add symbol table from file "memtest.debug" at
+	.text_addr = 0x201000
+	.data_addr = 0x224000
+Breakpoint 1 at 0x2171a7: main. (2 locations)
+Breakpoint 2 at 0x216af1: run_at. (2 locations)
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+0x000000000000fff0 in ?? ()
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   <MULTIPLE>         
+        layout src
+        delete 1
+1.1                         y     0x00000000002171a7 in main at ../app/main.c:508
+1.2                         y     0x00000000004161a7 in main at ../app/main.c:508
+2       breakpoint     keep y   <MULTIPLE>         
+2.1                         y     0x0000000000216af1 in run_at at ../app/main.c:152
+2.2                         y     0x0000000000415af1 in run_at at ../app/main.c:152
+
+Breakpoint 1, main () at ../app/main.c:508
+508	{
++add-symbol-file memtest.debug 0x400000 -s .data 0x423000
+add symbol table from file "memtest.debug" at
+	.text_addr = 0x400000
+	.data_addr = 0x423000
++add-symbol-file memtest.debug 0x201000 -s .data 0x224000
+add symbol table from file "memtest.debug" at
+	.text_addr = 0x201000
+	.data_addr = 0x224000
++b main
+Breakpoint 1 at 0x2171a7: main. (2 locations)
++commands
++b run_at
+Breakpoint 2 at 0x216af1: run_at. (2 locations)
++shell sleep 0.5
++target remote localhost:1234
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the "file" command.
+0x000000000000fff0 in ?? ()
++info b
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   <MULTIPLE>         
+        layout src
+        delete 1
+1.1                         y     0x00000000002171a7 in main at ../app/main.c:508
+1.2                         y     0x00000000004161a7 in main at ../app/main.c:508
+2       breakpoint     keep y   <MULTIPLE>         
+2.1                         y     0x0000000000216af1 in run_at at ../app/main.c:152
+2.2                         y     0x0000000000415af1 in run_at at ../app/main.c:152
++c
+
+Breakpoint 1, main () at ../app/main.c:508
+508	{
++layout src
++info variables
+All defined variables:
+
+File ../app/badram.c:
+static int num_patterns;
+static pattern_t pattern[10];
+
+File ../app/config.c:
+cpu_mode_t cpu_mode;
+cpu_state_t cpu_state[256];
+_Bool enable_bench;
+_Bool enable_sm;
+_Bool enable_temperature;
+_Bool enable_trace;
+_Bool enable_tty;
+error_mode_t error_mode;
+_Bool exclude_ecores;
+core_type_t hybrid_core_type[256];
+uintptr_t num_pages_to_test;
+_Bool pause_at_start;
+uintptr_t pm_limit_lower;
+uintptr_t pm_limit_upper;
+power_save_t power_save;
+_Bool smp_enabled;
+int tty_params_baud;
+int tty_params_port;
+int tty_update_period;
+static uint16_t popup_save_buffer[684];
+
+File ../app/display.c:
+_Bool big_status_displayed;
+display_mode_t display_mode;
+int max_cpu_temp;
+int scroll_message_row;
+static const char *cpu_mode_str[3];
+static uint64_t next_spin_time;
+static int pass_bar_length;
+static int pass_ticks;
+static uint16_t popup_status_save_buffer[396];
+static int prev_sec;
+static uint64_t run_start_time;
+static _Bool scroll_lock;
+static _Bool scroll_wait;
+static int spin_idx;
+static const char spin_state[4];
+static int test_bar_length;
+static int test_ticks;
+static _Bool timed_update_done;
+
+File ../app/error.c:
+uint64_t error_count;
+static error_info_t error_info;
+static error_mode_t last_error_mode;
+
+File ../app/interrupt.c:
+static const char *codes[20];
+
+File ../app/main.c:
+_Bool bail;
+uint8_t chunk_index[256];
+spinlock_t *error_mutex;
+int master_cpu;
+int num_active_cpus;
+int num_enabled_cpus;
+int pass_num;
+_Bool restart;
+barrier_t *run_barrier;
+uintptr_t test_addr[256];
+int test_num;
+vm_map_t vm_map[127];
+int vm_map_size;
+int window_num;
+static _Bool dummy_run;
+static uintptr_t high_load_addr;
+static volatile int init_state;
+static uintptr_t low_load_addr;
+static size_t num_mapped_pages;
+static _Bool rerun_test;
+static barrier_t *start_barrier;
+static _Bool start_pass;
+static _Bool start_run;
+static _Bool start_test;
+static int test_stage;
+static uintptr_t window_end;
+static uintptr_t window_start;
+
+File ../boot/efisetup.c:
+static efi_guid_t EFI_CONSOLE_OUT_DEVICE_GUID;
+static efi_guid_t EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+static efi_guid_t EFI_LOADED_IMAGE_PROTOCOL_GUID;
+static efi_system_table_t *sys_table;
+
+File ../system/acpi.c:
+acpi_t acpi_config;
+const char *rsdp_source;
+test test_struct;
+static const efi_guid_t EFI_ACPI_1_RDSP_GUID;
+static const efi_guid_t EFI_ACPI_2_RDSP_GUID;
+
+File ../system/cpuid.c:
+cpuid_info_t cpuid_info;
+
+File ../system/cpuinfo.c:
+uint32_t clks_per_msec;
+const char *cpu_model;
+uint16_t imc_type;
+int l1_cache;
+uint32_t l1_cache_speed;
+int l2_cache;
+uint32_t l2_cache_speed;
+int l3_cache;
+uint32_t l3_cache_speed;
+_Bool no_temperature;
+uint32_t ram_speed;
+
+File ../system/cpulocal.c:
+int local_bytes_used;
+
+File ../system/ehci.c:
+static const hcd_methods_t methods;
+
+File ../system/font.c:
+const uint8_t font_data[256][16];
+
+File ../system/heap.c:
+static heap_t heaps[2];
+
+File ../system/hwctrl.c:
+static efi_runtime_services_t *efi_rs_table;
+
+File ../system/hwquirks.c:
+quirk_t quirk;
+
+File ../system/jedec_id.h:
+static const struct spd_jedec_manufacturer jep106[134];
+
+File ../system/keyboard.c:
+keyboard_types_t keyboard_types;
+static const char legacy_keymap[84];
+static const char usb_hid_keymap[101];
+
+File ../system/ohci.c:
+static const hcd_methods_t methods;
+
+File ../system/pci.c:
+static pci_config_type_t pci_config_type;
+
+File ../system/pmem.c:
+size_t num_pm_pages;
+pm_map_t pm_map[127];
+int pm_map_size;
+
+File ../system/screen.c:
+vga_buffer_t shadow_buffer;
+static uint8_t current_attr;
+static uintptr_t lfb_base;
+static int lfb_bytes_per_pixel;
+static uint32_t lfb_pallete[16];
+static uintptr_t lfb_stride;
+static void (*put_char)(int, int, uint8_t, uint8_t);
+static vga_buffer_t *vga_buffer;
+static const rgb_value_t vga_pallete[16];
+
+File ../system/serial.c:
+static struct serial_port console_serial;
+
+File ../system/serial.h:
+static const uint16_t serial_base_ports[4];
+
+File ../system/smbios.c:
+struct baseboard_info *dmi_baseboard_info;
+struct mem_dev *dmi_memory_device;
+struct system_info *dmi_system_info;
+static const efi_guid_t SMBIOS2_GUID;
+static uint32_t table_length;
+static const uint8_t *table_start;
+
+File ../system/smbus.c:
+ram_info ram;
+int smbdev;
+int smbfun;
+uint32_t smbus_id;
+unsigned short smbusbase;
+static uint16_t extra_initial_sleep_for_smb_transaction;
+static const uint16_t intel_ich5_dids[59];
+static int8_t last_adr;
+static int8_t spd_page;
+
+File ../system/smp.c:
+int num_available_cpus;
+static uintptr_t alloc_addr;
+static apic_register_t *apic;
+static uint8_t apic_id_to_cpu_num[256];
+static uint8_t cpu_num_to_apic_id[256];
+static uintptr_t smp_heap_page;
+
+File ../system/uhci.c:
+static const hcd_methods_t methods;
+
+File ../system/usbhcd.c:
+usb_init_options_t usb_init_options;
+static const char *hci_name[4];
+static const hcd_methods_t methods;
+static int num_usb_controllers;
+static int print_col;
+static int print_row;
+static usb_hcd_t usb_controllers[8];
+
+File ../system/vmem.c:
+static unsigned int device_pages_used;
+static uintptr_t mapped_window;
+
+File ../system/xhci.c:
+static const hcd_methods_t methods;
+
+File ../tests/tests.c:
+test_pattern_t test_list[11];
+int ticks_per_pass[2];
+int ticks_per_test[2][11];
+
+Non-debugging symbols:
+0x0000000000018200  suffix
+0x00000000000214b0  _DYNAMIC
+0x0000000000423000  _data
+0x0000000000429008  startup_mutex
+0x000000000042900c  first_boot
+0x00000000004290a0  last_stage
+0x00000000004290a4  last_stage
+0x0000000000029da0  _GLOBAL_OFFSET_TABLE_
+0x0000000000029de8  _edata
+0x0000000000029e00  _bss
+0x0000000000029e00  startup_stack_base
+0x0000000000029e40  startup_stack_top
+0x0000000000029ed4  escaped
+0x0000000000029ef0  last_load_addr
+0x0000000000029f60  s
+0x000000000002a200  offset
+0x0000000000018200  suffix
+0x00000000000214b0  _DYNAMIC
+0x0000000000224000  _data
+0x000000000022a008  startup_mutex
+0x000000000022a00c  first_boot
+0x000000000022a0a0  last_stage
+0x000000000022a0a4  last_stage
+0x0000000000029da0  _GLOBAL_OFFSET_TABLE_
+0x0000000000029de8  _edata
+0x0000000000029e00  _bss
+0x0000000000029e00  startup_stack_base
+0x0000000000029e40  startup_stack_top
+0x0000000000029ed4  escaped
+0x0000000000029ef0  last_load_addr
+0x0000000000029f60  s
+0x000000000002a200  offset
++ptype acpi_config
+type = struct {
+    uint8_t ver_maj;
+    uint8_t ver_min;
+    uintptr_t rsdp_addr;
+    uintptr_t madt_addr;
+    uintptr_t fadt_addr;
+    uintptr_t hpet_addr;
+    uintptr_t pm_addr;
+    _Bool pm_is_io;
+}
++ptype test_struct
+type = struct {
+    uint8_t test_int;
+}
+quit
++quit
+Remote connection closed
++delete 1
++c
++n
++n
++n
++n
++n
++n
++n
++n
++p &acpi_config
+$1 = (acpi_t *) 0x29e60 <acpi_config>
++p &num_enabled_cpus
+$2 = (int *) 0x4290c0 <num_enabled_cpus>
++p &test_struct
+$3 = (test *) 0x429040 <test_struct>
++p & asd
+No symbol "asd" in current context.
+Error detected on fd 0
+error detected on stdin

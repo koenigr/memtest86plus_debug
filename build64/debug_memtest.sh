@@ -160,12 +160,16 @@ Init() {
         	exit 1
         fi
 
-        echo "add-symbol-file memtest.debug $OFFSET -s .data $DATAOFF" >> $GDB_FILE
+
         echo "add-symbol-file memtest.debug $RELOCADDR -s .data 0x423000" >> $GDB_FILE
+        echo "add-symbol-file memtest.debug $OFFSET -s .data $DATAOFF" >> $GDB_FILE
 
         echo "b main" >> $GDB_FILE
         echo "commands" >> $GDB_FILE
         echo "layout src" >> $GDB_FILE
+        echo "set trace-commands on" >> $GDB_FILE
+        echo "set logging on" >> $GDB_FILE
+        
         echo "delete 1" >> $GDB_FILE
         echo "end" >> $GDB_FILE
 
