@@ -161,7 +161,7 @@ Init() {
         fi
 
         echo "add-symbol-file memtest.debug $OFFSET -s .data $DATAOFF" >> $GDB_FILE
-        echo "add-symbol-file memtest.debug $RELOCADDR" >> $GDB_FILE
+        echo "add-symbol-file memtest.debug $RELOCADDR -s .data 0x423000" >> $GDB_FILE
 
         echo "b main" >> $GDB_FILE
         echo "commands" >> $GDB_FILE
