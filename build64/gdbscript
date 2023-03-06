@@ -1,0 +1,18 @@
+set pagination off
+add-symbol-file memtest.debug 0x201000
+add-symbol-file memtest.debug 0x400000
+b main
+commands
+layout src
+delete 1
+end
+b global_init
+b screen_init
+b screen.c:219
+b cpuinfo_init
+b run_at
+b boot
+shell sleep 0.5
+target remote localhost:1234
+info b
+
