@@ -655,3 +655,21 @@ $3 = (test *) 0x429040 <test_struct>
 No symbol "asd" in current context.
 Error detected on fd 0
 error detected on stdin
++delete 1
++c
++n
++n
++n
++n
++n
++n
++n
++n
++p &acpi_config
+$1 = (acpi_t *) 0x29e60 <acpi_config>
++p &num_enabled_cpus
+$2 = (int *) 0x4290c0 <num_enabled_cpus>
++p &test_struct
+$3 = (test *) 0x429040 <test_struct>
+Error detected on fd 0
+error detected on stdin
