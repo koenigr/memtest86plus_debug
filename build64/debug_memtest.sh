@@ -3,7 +3,7 @@
 
 ###############################################################################
 #
-# Description	: `debug_memtest.sh` is a script that allows memtest86plus 
+# Description	: `debug_memtest.sh` is a script that allows memtest86plus
 #		developers to set up a debugging environment with GDB in QEMU. It calls
 #		the `make debug` target of a modified Makefile to create an additional
 #		debug-symbol file called `memtest.debug`. The symbols of this file are
@@ -83,6 +83,12 @@ Check() {
 		echo "Or copy your own versions of OVMF.fd, OVMF_VARS.fd and OVMF_CODE.fd into this directory"
 		exit 1
 	fi
+
+	# Check if gdb is installed
+        if ! command -v gdb > /dev/null 2>&1; then
+               echo "GDB not installed"
+               exit 1
+        fi
 
 	# Check for various terminals. Do not define TERMINAL if already defined by commandline
 	if [ -z $TERMINAL ]; then
