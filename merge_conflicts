@@ -1,0 +1,2641 @@
+diff --git a/.github/workflows/Linux.yml b/.github/workflows/Linux.yml
+index f8fd5e5..6833ce4 100644
+--- a/.github/workflows/Linux.yml
++++ b/.github/workflows/Linux.yml
+@@ -13,15 +13,14 @@ on:
+ 
+ jobs:
+   build:
+-    name: ${{ matrix.os }} ${{ matrix.compiler }} ${{ matrix.wordsize }}
++    name: ${{ matrix.os }} ${{ matrix.compiler }}
+     runs-on: ${{ matrix.os }}
+ 
+     strategy:
+       fail-fast: false
+       matrix:
+-        compiler: [gcc]
++        compiler: [gcc, clang]
+         os: [ubuntu-20.04, ubuntu-22.04]
+-        wordsize: [32, 64]
+ 
+     steps:
+       - uses: actions/checkout@v3
+@@ -29,14 +28,36 @@ jobs:
+           submodules: recursive
+ 
+       - name: Install Linux Dependencies
+-        run: |
+-          sudo apt-get update
+-          sudo apt-get install build-essential gcc-multilib clang libc6-dev-i386-cross dosfstools mtools xorriso -y
++        run: sudo apt-get install build-essential gcc-multilib clang libc6-dev-i386-cross dosfstools mtools xorriso -y
+ 
+-      - name: Clean up
+-        working-directory: ./build${{matrix.wordsize}}
++      - name: Make all build32
++        env:
++          C: ${{matrix.compiler}}
++        working-directory: ./build32
++        run: make -j 2 all
++
++      - name: Make clean build32
++        working-directory: ./build32
+         run: make clean
+ 
+-      - name: Build
+-        working-directory: ./build${{matrix.wordsize}}
+-        run: make -j 2 CC="${{matrix.compiler}}" iso
++      - name: Make all build64
++        env:
++          C: ${{matrix.compiler}}
++        working-directory: ./build64
++        run: make -j 2 all
++
++      - name: Make clean build64
++        working-directory: ./build64
++        run: make clean
++
++      - name: Make iso build32
++        env:
++          C: ${{matrix.compiler}}
++        working-directory: ./build32
++        run: make -j 2 iso
++
++      - name: Make iso build64
++        env:
++          C: ${{matrix.compiler}}
++        working-directory: ./build64
++        run: make -j 2 iso
+diff --git a/.github/workflows/expired.yml b/.github/workflows/expired.yml
+index d29b395..7e48f6e 100644
+--- a/.github/workflows/expired.yml
++++ b/.github/workflows/expired.yml
+@@ -6,7 +6,7 @@ jobs:
+   stale:
+     runs-on: ubuntu-latest
+     steps:
+-      - uses: actions/stale@v8
++      - uses: actions/stale@v7
+         with:
+           repo-token: ${{ secrets.GITHUB_TOKEN }}
+           exempt-issue-milestones: 'future,alpha,beta,release'
+diff --git a/.gitignore b/.gitignore
+index 1ebf692..c815dce 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -9,6 +9,8 @@
+ 
+ # Generated file
+ build_version.h
++gdbscript
++memtest_shared_debug.lds
+ 
+ # Binaries
+ memtest_shared
+@@ -18,10 +20,14 @@ memtest_shared.bin
+ *.img
+ *.iso
+ *.mbr
++*.debug
+ 
+ # Directories
+ grub-iso
+ html
+ latex
+ 
++# OVMF
++OVMF*
++
+ 
+diff --git a/HOW_TO_DEBUG_WITH_GDB.md b/HOW_TO_DEBUG_WITH_GDB.md
+new file mode 100644
+index 0000000..c2e9397
+--- /dev/null
++++ b/HOW_TO_DEBUG_WITH_GDB.md
+@@ -0,0 +1,97 @@
++#		How to debug memtest.efi in QEMU with GDB
++
++`debug_memtest.sh` is a script that allows memtest86plus developers to set up a debugging environment with GDB in QEMU.  
++It calls the `make debug` target of a modified Makefile to create an additional debug-symbol file called `memtest.debug`.  
++The symbols of this file are loaded with an offset (in accordance with the loading location of the efi-image) into GDB to match the exact addresses of the symbols in memory.
++
++
++##	Prerequisites
++
++* this approach was tested on Ubuntu 18.04 - 22.04
++* the debug script is created only for the efi 64-bit version
++* qemu-system-x86_64 and ovmf must be installed
++
++##	How to run
++
++* navigate to build64 directory
++* run `./debug_memtest.sh`
++* or type `./debug_memtest.sh -h` for help
++
++### Remarks - create own gdbscript
++
++It is possible to provide an own gdb-script. Name it 'gdbscript' and place it in the build64 directory.
++This script will automatically be loaded when gdb starts.
++!! But be careful when cleaning the directory by './debug_memtest.sh -c'. It also removes 'gdbscript'.
++!! Make sure that you have made a copy of 'gdbscript' when running this command.
++
++##	Navigate inside Qemu/UEFI
++
++* wait until UEFI-Shell is loaded
++* type "fs0:" - Enter
++* type "memtest.efi" - Enter
++
++###	Inside GDB
++
++When GDB is running, it stops at the first breakpoint at main(). Feel free to add further breakpoints or continue with `c`.
++
++###	Remarks - auto-boot memtest86+
++
++In step **Navigate inside QEMU/UEFI**, you have to navigate to the directory which contains memtest.efi and manually launch it.
++
++If you want to automatically boot from memtest.efi, there is an additional step required to add memtest to the first place at the bootorder:
++
++When the UEFI Shell is running, type
++		`bcfg boot add 0 FS0:\EFI\boot\BOOT_X64.efi "memtest"`
++and confirm with Enter.
++The directory "\EFI\boot" and the file "BOOT_X64.efi" are automatically
++created by the debug-script.
++
++When you run the script the next time, memtest.efi should run without
++previous user interaction.
++
++!! But be careful when cleaning the directory by './debug_memtest.sh -c'. It also removes this setting.
++!! Make sure that you have made a copy of 'OVMF*'-files when running this command.
++
++##	Clean directory
++
++'debug_memtest.sh' has an own clean procedure which cleans additional files not mentioned in Makefile's
++'make clean' target. When you run this command, make sure that you have saved 'gdbscript' and/or OVMF* files if there are custom changes.
++
++To clean the directory, type `./debug_memtest.sh -c`
++
++##	Possible features/alternatives and further considerations
++
++###	Detection of Image Base 
++
++To assign the correct address for all debugging symbols, it is neccessary to add an offset to the values in memtest.debug (the file containing the debug symbols). This offset consists of the IMAGE_BASE and the BASE_OF_CODE.  
++Both values are defined in `memtest86plus/boot/header.S` 
++
++* IMMUTABILITY OF ALL CONDITIONS
++
++if you assume, that these values will never change during the development phase of memtest86plus AND memtest.efi is always loaded at this preferred address in qemu-system-x86_64 (which seems to be the case) then it is possible to hardcode the offset in the script (for the implementation see debug_memtest_simple.sh)
++
++* ADAPTABILITY TO DEVELOPMENT CHANGES
++
++if there is a chance, that these values WILL change during the development phase but memtest.efi is always loaded at this preferred address then the value can be read from header.S by the debug script just right before starting the debugging (for an example, see debug_memtest_full.sh)
++
++* EXPECTED ERRATIC BEHAVIOUR OF QEMU
++
++If it is expected that memtest.efi is NOT always loaded at the same address, it is inevitable to determine the actual loading address first. This approach comprises a DEBUG-build of OVMF.fd (which requires the cloning of the whole edk2-repository and manually build OVMF.fd). With this DEBUG-version of OVMF.fd it is possible to write the loading addresses of all modules into a debug.log.
++This proceeding has been tested successfully but is actually not implemented in one of the srcipts.
++
++###	Handle relocation of memtest
++
++memtest86plus relocates itself during the test procedures. As the script loads the symbol table with a given offset, debugging is only possible when the code is located at the original position. There are several ways to deal with relocation:
++
++* IGNORE RELOCATION
++
++Just ignore the fact that at a part of the time the symbols are not recognized by gdb as gdb has no information about the symbols, when memtest86plus has been relocated. It is still possible to debug the code since memtest86plus jumps sooner or later back to the original position and all precedures which are executed at one location are also executed at the other position.
++BUT: If a bug is position-dependent (i.e. it occurs only at the relocated position), you are not able to debug it.
++
++* DISABLE RELOCATION
++
++TODO: Is it possible to deactivate relocation? E.g. by outcommenting some code or setting a flag? Does it have benefits over the first approach?
++
++* FOLLOW RELOCATION
++
++If the position after relocation is expected to be always the same, then you can just load the symbol table twice. This is done in debug_memtest_simple.sh (the offsets are 0x201000 and 0x400000). If the locations can vary then the offsets must be determined dynamically ... todo: how?
+\ No newline at end of file
+diff --git a/README.md b/README.md
+index 664ea8c..896d6a2 100644
+--- a/README.md
++++ b/README.md
+@@ -133,8 +133,6 @@ recognised:
+     * disables the big PASS/FAIL pop-up status display
+   * nosm
+     * disables SMBUS/SPD parsing, DMI decoding and memory benchmark
+-  * nomch
+-    * disables memory controller configuration polling
+   * nopause
+     * skips the pause for configuration at startup
+   * keyboard=*type*
+@@ -162,12 +160,6 @@ recognised:
+       * 57600
+       * 115200 (default if not specified or invalid)
+       * 230400
+-  * console=*x*,*y*
+-    * activate MMIO UART console, where *x* is the MMIO stride (reg. width)
+-      * mmio   = 8-bit MMIO
+-      * mmio16 = 16-bit MMIO
+-      * mmio32 = 32-bit MMIO
+-    * and *y* is the MMIO address in hex. with `0x` prefix (eg: 0xFEDC9000)
+ 
+ ## Keyboard Selection
+ 
+diff --git a/app/config.c b/app/config.c
+index 8e32588..61a216c 100644
+--- a/app/config.c
++++ b/app/config.c
+@@ -97,21 +97,17 @@ bool            enable_trace       = false;
+ 
+ bool            enable_sm          = true;
+ bool            enable_bench       = true;
+-bool            enable_mch_read    = true;
+ 
+ bool            pause_at_start     = true;
+ 
+ power_save_t    power_save         = POWER_SAVE_HIGH;
+ 
+ bool            enable_tty         = false;
+-uintptr_t       tty_address        = 0x3F8;             // Legacy IO or MMIO Address accepted
+-int             tty_baud_rate      = 115200;
+-int             tty_update_period  = 2;                 // Update TTY every 2 seconds (default)
++int             tty_params_port    = SERIAL_PORT_0x3F8;
++int             tty_params_baud    = SERIAL_DEFAULT_BAUDRATE;
++int             tty_update_period  = 2;     // Update TTY every 2 seconds (default)
+ 
+-uint32_t        tty_mmio_ref_clk   = UART_REF_CLK_MMIO; // Reference clock for MMIO (in Hz)
+-int             tty_mmio_stride    = 4;                 // Stride for MMIO (register width in bytes)
+-
+-bool            err_banner_redraw  = false;             // Redraw banner on new errors
++bool            err_banner_redraw  = false; // Redraw banner on new errors (if previsouly removed)
+ 
+ //------------------------------------------------------------------------------
+ // Private Functions
+@@ -126,28 +122,6 @@ static void parse_serial_params(const char *params)
+         return;
+     }
+ 
+-    // Check if console is MMIO and grab address and stride
+-    uintptr_t mmio_adr = 0;
+-    if (strncmp(params, "mmio,0x", 7) == 0) {
+-        mmio_adr = hexstr2int(params+7);
+-        tty_mmio_stride = 1;
+-    } else if (strncmp(params, "mmio16,0x", 9) == 0) {
+-        mmio_adr = hexstr2int(params+9);
+-        tty_mmio_stride = 2;
+-    } else if (strncmp(params, "mmio32,0x", 9) == 0) {
+-        mmio_adr = hexstr2int(params+9);
+-        tty_mmio_stride = 4;
+-    }
+-
+-    if(strncmp(params, "mmio", 4) == 0) {
+-        if (mmio_adr > 0xFFFF) {
+-            tty_address = mmio_adr;
+-        } else {
+-            enable_tty = false;
+-        }
+-        return;
+-    }
+-
+     // No TTY port passed, use default ttyS0
+     if (strncmp(params, "ttyS", 5) == 0) {
+         return;
+@@ -155,7 +129,7 @@ static void parse_serial_params(const char *params)
+ 
+     // Configure TTY port or use default
+     if (params[4] >= '0' && params[4] <= '3') {
+-        tty_address = serial_io_ports[params[4] - '0'];
++        tty_params_port = params[4] - '0';
+     } else {
+         return;
+     }
+@@ -170,27 +144,27 @@ static void parse_serial_params(const char *params)
+         default:
+             return;
+         case '1':
+-            tty_baud_rate   = (params[7] == '9') ? 19200 : 115200;
++            tty_params_baud   = (params[7] == '9') ? 19200 : 115200;
+             tty_update_period = (params[7] == '9') ? 4 : 2;
+             break;
+         case '2':
+-            tty_baud_rate   = 230400;
++            tty_params_baud   = 230400;
+             tty_update_period = 2;
+             break;
+         case '3':
+-            tty_baud_rate   = 38400;
++            tty_params_baud   = 38400;
+             tty_update_period = 4;
+             break;
+         case '5':
+-            tty_baud_rate   = 57600;
++            tty_params_baud   = 57600;
+             tty_update_period = 3;
+             break;
+         case '7':
+-            tty_baud_rate   = 76800;
++            tty_params_baud   = 76800;
+             tty_update_period = 3;
+             break;
+         case '9':
+-            tty_baud_rate   = 9600;
++            tty_params_baud   = 9600;
+             tty_update_period = 5;
+             break;
+     }
+@@ -235,8 +209,6 @@ static void parse_option(const char *option, const char *params)
+         enable_big_status = false;
+     } else if (strncmp(option, "noehci", 7) == 0) {
+         usb_init_options |= USB_IGNORE_EHCI;
+-    } else if (strncmp(option, "nomch", 6) == 0) {
+-        enable_mch_read = false;
+     } else if (strncmp(option, "nopause", 8) == 0) {
+         pause_at_start = false;
+     } else if (strncmp(option, "nosm", 5) == 0) {
+@@ -840,6 +812,8 @@ void config_init(void)
+         cpu_state[i] = CPU_STATE_ENABLED;
+     }
+ 
++    enable_temperature &= !no_temperature;
++
+     power_save = POWER_SAVE_HIGH;
+ 
+     const boot_params_t *boot_params = (boot_params_t *)boot_params_addr;
+@@ -875,9 +849,9 @@ void config_menu(bool initial)
+             if (!smp_enabled)  set_foreground_colour(BOLD+BLACK);
+             prints(POP_R+7,  POP_LI, "<F5>  CPU selection");
+             if (!smp_enabled)  set_foreground_colour(WHITE);
+-            //if (no_temperature) set_foreground_colour(BOLD+BLACK);
++            if (no_temperature) set_foreground_colour(BOLD+BLACK);
+             printf(POP_R+8,  POP_LI, "<F6>  Temperature %s", enable_temperature ? "disable" : "enable ");
+-            //if (no_temperature) set_foreground_colour(WHITE);
++            if (no_temperature) set_foreground_colour(WHITE);
+             printf(POP_R+9,  POP_LI, "<F7>  Boot trace %s",  enable_trace  ? "disable" : "enable ");
+             prints(POP_R+10, POP_LI, "<F10> Exit menu");
+         } else {
+@@ -916,7 +890,9 @@ void config_menu(bool initial)
+             break;
+           case '6':
+             if (initial) {
+-                enable_temperature = !enable_temperature;
++                if (!no_temperature) {
++                    enable_temperature = !enable_temperature;
++                }
+             }
+             break;
+           case '7':
+diff --git a/app/config.h b/app/config.h
+index cf6030a..3d6b82a 100644
+--- a/app/config.h
++++ b/app/config.h
+@@ -58,18 +58,14 @@ extern bool         enable_trace;
+ extern bool         enable_sm;
+ extern bool         enable_tty;
+ extern bool         enable_bench;
+-extern bool         enable_mch_read;
+ 
+ extern bool         pause_at_start;
+ 
+ extern power_save_t power_save;
+ 
+-extern uintptr_t    tty_address;
+-extern int          tty_baud_rate;
+-extern int          tty_update_period;
+-
+-extern uint32_t     tty_mmio_ref_clk;
+-extern int          tty_mmio_stride;
++extern int tty_params_port;
++extern int tty_params_baud;
++extern int tty_update_period;
+ 
+ extern bool err_banner_redraw;
+ 
+diff --git a/app/display.c b/app/display.c
+index ebba21b..4e6b14a 100644
+--- a/app/display.c
++++ b/app/display.c
+@@ -10,7 +10,6 @@
+ #include "hwctrl.h"
+ #include "io.h"
+ #include "keyboard.h"
+-#include "memctrl.h"
+ #include "serial.h"
+ #include "pmem.h"
+ #include "smbios.h"
+@@ -263,14 +262,10 @@ void post_display_init(void)
+     print_smbios_startup_info();
+     print_smbus_startup_info();
+ 
+-    if (imc.freq) {
+-        // Try to get RAM information from IMC
++    if (false) {
++        // Try to get RAM information from IMC (TODO)
+         display_spec_mode("IMC: ");
+-        if (imc.type[3] == '5') {
+-            display_spec_ddr5(imc.freq, imc.type, imc.tCL, imc.tCL_dec, imc.tRCD, imc.tRP, imc.tRAS);
+-        } else {
+-            display_spec_ddr(imc.freq, imc.type, imc.tCL, imc.tCL_dec, imc.tRCD, imc.tRP, imc.tRAS);
+-        }
++        display_spec_ddr(ram.freq, ram.type, ram.tCL, ram.tCL_dec, ram.tRCD, ram.tRP, ram.tRAS);
+         display_mode = DISPLAY_MODE_IMC;
+     } else if (ram.freq > 0 && ram.tCL > 0) {
+         // If not available, grab max memory specs from SPD
+@@ -343,6 +338,7 @@ void display_temperature(void)
+     if (actual_cpu_temp == 0) {
+         if (max_cpu_temp == 0) {
+             enable_temperature = false;
++            no_temperature = true;
+         }
+         return;
+     }
+@@ -413,7 +409,6 @@ void check_input(void)
+         return;
+     } else if (big_status_displayed) {
+         restore_big_status();
+-        enable_big_status = false;
+     }
+ 
+     switch (input_key) {
+diff --git a/app/display.h b/app/display.h
+index 99a6c25..7d065f7 100644
+--- a/app/display.h
++++ b/app/display.h
+@@ -102,10 +102,6 @@ typedef enum {
+ #define display_spec_mode(mode) \
+     prints(8,0, mode);
+ 
+-#define display_spec_ddr5(freq, type, cl, cl_dec, rcd, rp, ras) \
+-    printf(8,5, "%s-%u / CAS %u%s-%u-%u-%u", \
+-                type, freq, cl, cl_dec?".5":"", rcd, rp, ras);
+-
+ #define display_spec_ddr(freq, type, cl, cl_dec, rcd, rp, ras) \
+     printf(8,5, "%uMHz (%s-%u) CAS %u%s-%u-%u-%u", \
+                 freq / 2, type, freq, cl, cl_dec?".5":"", rcd, rp, ras);
+diff --git a/app/main.c b/app/main.c
+index 3daedc2..734b0e7 100644
+--- a/app/main.c
++++ b/app/main.c
+@@ -28,7 +28,6 @@
+ #include "io.h"
+ #include "keyboard.h"
+ #include "pmem.h"
+-#include "memctrl.h"
+ #include "memsize.h"
+ #include "pci.h"
+ #include "screen.h"
+@@ -236,8 +235,6 @@ static void global_init(void)
+ 
+     config_init();
+ 
+-    memctrl_init();
+-
+     tty_init();
+ 
+     smp_init(smp_enabled);
+@@ -674,8 +671,7 @@ void main(void)
+             if (error_count == 0) {
+                 display_status("Pass   ");
+                 display_big_status(true);
+-            } else {
+-                display_big_status(false);
++                //display_notice("** Pass completed, no errors **");
+             }
+         }
+     }
+diff --git a/app/version.h b/app/version.h
+index d409fc8..8b321b9 100644
+--- a/app/version.h
++++ b/app/version.h
+@@ -1,2 +1,2 @@
+-#define MT_VERSION "6.20"
++#define MT_VERSION "6.10"
+ #define GIT_HASH "unknown"
+diff --git a/build32/Makefile b/build32/Makefile
+index 107ba80..552c7b5 100644
+--- a/build32/Makefile
++++ b/build32/Makefile
+@@ -1,6 +1,5 @@
+ AS = as -32
+ CC = gcc
+-OBJCOPY = objcopy
+ 
+ GIT = git
+ 
+@@ -26,7 +25,6 @@ SYS_OBJS = system/acpi.o \
+            system/hwquirks.o \
+            system/keyboard.o \
+            system/ohci.o \
+-           system/memctrl.o \
+            system/pci.o \
+            system/pmem.o \
+            system/reloc.o \
+@@ -42,9 +40,6 @@ SYS_OBJS = system/acpi.o \
+            system/vmem.o \
+            system/xhci.o
+ 
+-IMC_SRCS = $(wildcard ../system/imc/*.c)
+-IMC_OBJS = $(subst ../,,$(IMC_SRCS:.c=.o))
+-
+ LIB_OBJS = lib/barrier.o \
+            lib/div64.o \
+            lib/print.o \
+@@ -70,13 +65,12 @@ APP_OBJS = app/badram.o \
+            app/interrupt.o \
+            app/main.o
+ 
+-OBJS = boot/startup.o boot/efisetup.o $(SYS_OBJS) $(IMC_OBJS) $(LIB_OBJS) $(TST_OBJS) $(APP_OBJS)
++OBJS = boot/startup.o boot/efisetup.o $(SYS_OBJS) $(LIB_OBJS) $(TST_OBJS) $(APP_OBJS)
+ 
+ all: memtest.bin memtest.efi
+ 
+ -include boot/efisetup.d
+ -include $(subst .o,.d,$(SYS_OBJS))
+--include $(subst .o,.d,$(IMC_OBJS))
+ -include $(subst .o,.d,$(LIB_OBJS))
+ -include $(subst .o,.d,$(TST_OBJS))
+ -include $(subst .o,.d,$(APP_OBJS))
+@@ -103,10 +97,6 @@ system/%.o: ../system/%.c
+ 	@mkdir -p system
+ 	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+ 
+-system/imc/%.o: ../system/imc/%.c
+-	@mkdir -p system/imc
+-	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+-
+ lib/%.o: ../lib/%.c
+ 	@mkdir -p lib
+ 	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+@@ -143,7 +133,7 @@ memtest_shared: $(OBJS) ldscripts/memtest_shared.lds Makefile
+ 	$(LD) -shared -Bsymbolic -T ldscripts/memtest_shared.lds -o $@ $(OBJS)
+ 
+ memtest_shared.bin: memtest_shared
+-	$(OBJCOPY) -O binary $< memtest_shared.bin
++	objcopy -O binary $< memtest_shared.bin
+ 
+ memtest.bin: memtest_shared.bin boot/bootsect.o boot/setup.o ldscripts/memtest_bin.lds
+ 	$(eval SIZES=$(shell size -B -d memtest_shared | grep memtest_shared))
+diff --git a/build64/Makefile b/build64/Makefile
+index f0ef164..603a843 100644
+--- a/build64/Makefile
++++ b/build64/Makefile
+@@ -1,6 +1,5 @@
+ AS = as -64
+ CC = gcc
+-OBJCOPY = objcopy
+ 
+ GIT = git
+ 
+@@ -13,6 +12,18 @@ endif
+ CFLAGS = -std=c11 -Wall -Wextra -Wshadow -m64 -march=x86-64 -mno-mmx -mno-sse -mno-sse2 \
+          -fpic -fno-builtin -ffreestanding -fomit-frame-pointer -fno-stack-protector
+ 
++ifeq ($(DEBUG), 1)
++ CFLAGS+=-ggdb3 -DDEBUG_GDB
++ OPT_SMALL=-Og
++ OPT_FAST=-Og
++ MS_LDS=memtest_shared_debug.lds
++else
++ OPT_SMALL=-Os
++ OPT_FAST=-O3
++ MS_LDS=ldscripts/memtest_shared.lds
++endif
++
++
+ INC_DIRS = -I../boot -I../system -I../lib -I../tests -I../app -Iapp
+ 
+ SYS_OBJS = system/acpi.o \
+@@ -26,7 +37,6 @@ SYS_OBJS = system/acpi.o \
+            system/hwquirks.o \
+            system/keyboard.o \
+            system/ohci.o \
+-           system/memctrl.o \
+            system/pci.o \
+            system/pmem.o \
+            system/reloc.o \
+@@ -42,9 +52,6 @@ SYS_OBJS = system/acpi.o \
+            system/vmem.o \
+            system/xhci.o
+ 
+-IMC_SRCS = $(wildcard ../system/imc/*.c)
+-IMC_OBJS = $(subst ../,,$(IMC_SRCS:.c=.o))
+-
+ LIB_OBJS = lib/barrier.o \
+            lib/print.o \
+            lib/read.o \
+@@ -69,13 +76,20 @@ APP_OBJS = app/badram.o \
+            app/interrupt.o \
+            app/main.o
+ 
+-OBJS = boot/startup.o boot/efisetup.o $(SYS_OBJS) $(IMC_OBJS) $(LIB_OBJS) $(TST_OBJS) $(APP_OBJS)
++OBJS = boot/startup.o boot/efisetup.o $(SYS_OBJS) $(LIB_OBJS) $(TST_OBJS) $(APP_OBJS)
+ 
+ all: memtest.bin memtest.efi
+ 
++check:
++	@if [ -z ${DEBUG} ]; then\
++		echo "Macro DEBUG is not defined. Run debug_memtest.sh to invoke debug target";\
++		exit 1;\
++	fi
++
++debug: check memtest.debug memtest.efi
++
+ -include boot/efisetup.d
+ -include $(subst .o,.d,$(SYS_OBJS))
+--include $(subst .o,.d,$(IMC_OBJS))
+ -include $(subst .o,.d,$(LIB_OBJS))
+ -include $(subst .o,.d,$(TST_OBJS))
+ -include $(subst .o,.d,$(APP_OBJS))
+@@ -92,31 +106,27 @@ boot/%.o: ../boot/%.S ../boot/boot.h app/build_version.h
+ 
+ boot/efisetup.o: ../boot/efisetup.c
+ 	@mkdir -p boot
+-	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
++	$(CC) -c $(CFLAGS) $(OPT_SMALL)  $(INC_DIRS)  -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+ 
+ system/reloc.o: ../system/reloc64.c
+ 	@mkdir -p system
+-	$(CC) -c $(CFLAGS) -fno-strict-aliasing -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
++	$(CC) -c $(CFLAGS) -fno-strict-aliasing $(OPT_SMALL)  $(INC_DIRS)  -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+ 
+ system/%.o: ../system/%.c
+ 	@mkdir -p system
+-	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+-
+-system/imc/%.o: ../system/imc/%.c
+-	@mkdir -p system/imc
+-	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
++	$(CC) -c $(CFLAGS) $(OPT_SMALL)  $(INC_DIRS)  -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+ 
+ lib/%.o: ../lib/%.c
+ 	@mkdir -p lib
+-	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
++	$(CC) -c $(CFLAGS) $(OPT_SMALL)  $(INC_DIRS)  -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+ 
+ tests/%.o: ../tests/%.c
+ 	@mkdir -p tests
+-	$(CC) -c $(CFLAGS) -O3 $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
++	$(CC) -c $(CFLAGS) -O3 $(INC_DIRS)  -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+ 
+ app/%.o: ../app/%.c app/build_version.h
+ 	@mkdir -p app
+-	$(CC) -c $(CFLAGS) -Os $(INC_DIRS) -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
++	$(CC) -c $(CFLAGS) $(OPT_SMALL)  $(INC_DIRS)  -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+ 
+ app/build_version.h: FORCE
+ 	@mkdir -p app
+@@ -137,12 +147,17 @@ FORCE:
+ # Link it statically once so I know I don't have undefined symbols and
+ # then link it dynamically so I have full relocation information.
+ 
+-memtest_shared: $(OBJS) ldscripts/memtest_shared.lds Makefile
+-	$(LD) --warn-constructors --warn-common -static -T ldscripts/memtest_shared.lds -o $@ $(OBJS) && \
+-	$(LD) -shared -Bsymbolic -T ldscripts/memtest_shared.lds -o $@ $(OBJS)
++memtest_shared: $(OBJS) $(MS_LDS) Makefile
++	$(LD) --warn-constructors --warn-common -static -T $(MS_LDS) -o $@ $(OBJS) && \
++	$(LD) -shared -Bsymbolic -T $(MS_LDS) -o $@ $(OBJS)
+ 
+ memtest_shared.bin: memtest_shared
+-	$(OBJCOPY) -O binary $< memtest_shared.bin
++	objcopy -O binary $< memtest_shared.bin
++
++memtest.debug: memtest_shared
++	objcopy --only-keep-debug memtest_shared memtest.debug
++	strip -R .eh_frame memtest_shared
++	strip -R .comment memtest_shared
+ 
+ memtest.bin: memtest_shared.bin boot/bootsect.o boot/setup.o ldscripts/memtest_bin.lds
+ 	$(eval SIZES=$(shell size -B -d memtest_shared | grep memtest_shared))
+diff --git a/build64/app/githash.h b/build64/app/githash.h
+new file mode 100644
+index 0000000..2322e6a
+--- /dev/null
++++ b/build64/app/githash.h
+@@ -0,0 +1 @@
++#define GIT_HASH "f193b20"
+diff --git a/build64/debug_memtest.sh b/build64/debug_memtest.sh
+new file mode 100755
+index 0000000..0c2650b
+--- /dev/null
++++ b/build64/debug_memtest.sh
+@@ -0,0 +1,229 @@
++#! /bin/bash
++
++###############################################################################
++#
++# Description   : `debug_memtest.sh` is a script that allows memtest86plus
++#       developers to set up a debugging environment with GDB in QEMU. It calls
++#       the `make debug` target of a modified Makefile to create an additional
++#       debug-symbol file called `memtest.debug`. The symbols of this file are
++#       loaded with an offset (in accordance with the loading location of the
++#       efi-image) into GDB to match the exact addresses of the symbols in memory.
++#
++#       For more detailed information, please read 'HOW_TO_DEBUG_WITH_GDB'
++#
++# Author        : Regina König
++# Year          : 2022
++# Email         : koenig_regina@arcor.de
++#
++##############################################################################
++
++Help() {
++    echo "Syntax: $0 [-h|-c|-t <terminal><execution_command>]"
++    echo "options:"
++    echo " -h   Print this help"
++    echo " -c   Delete all debugging related files"
++    echo " -t   Define an alternative terminal"
++    echo "  You can define your own terminal inclusive its execution command via:"
++    echo "      ./debug_script.sh -t \"<terminal> <execution_command> \""
++    echo "  See following examples:"
++    echo "      ./debug_script.sh -t \"x-terminal-emulator -e \""
++    echo "      ./debug_script.sh -t \"gnome-terminal --  \""
++    echo "      ./debug_script.sh -t \"xterm -e \""
++}
++
++Clear() {
++    echo "Deleting files..."
++    rm -rf hda-contents
++    rm -f debug.log
++    rm -f gdbscript
++    rm -f QemuKill
++    make clean
++    rm -f OVMF.fd
++    rm -f OVMF_VARS.fd
++    rm -f OVMF_CODE.fd
++    rm -f memtest_shared_debug.lds
++}
++
++while getopts ":hct:" option; do
++
++    case $option in
++        h) # display Help
++            Help
++            exit;;
++        c) # clear directory
++            Clear
++            exit;;
++        t) # define own terminal
++            TERMINAL="$OPTARG"
++            if ! $TERMINAL ls; then
++                echo "Your entered command is not valid. Please check it again"
++                echo "Or type \"./debug_memtest.sh -h\" for help"
++                exit 1
++            fi
++            exit;;
++        \?) # invalid option
++            echo "Error: Invalid option"
++            echo "Type $0 -h for more information"
++            exit;;
++    esac
++
++done
++
++Check() {
++    # Check if QEMU and OVMF are installed
++    if ! command -v qemu-system-x86_64 > /dev/null 2>&1; then
++        echo "Qemu not installed"
++        exit 1
++    fi
++
++    # Check for presence of OVMF.fd, OVMF_VARS.fd and OVMF_CODE.fd
++    if [ ! -f OVMF.fd ] && [ ! -f /usr/share/ovmf/OVMF.fd ]; then
++        echo "Package ovmf not installed. Type 'sudo apt install ovmf'."
++        echo "Or copy your own versions of OVMF.fd, OVMF_VARS.fd and OVMF_CODE.fd into this directory"
++        exit 1
++    fi
++
++    # Check if gdb is installed
++    if ! command -v gdb > /dev/null 2>&1; then
++        echo "GDB not installed"
++        exit 1
++    fi
++
++    # Check for various terminals. Do not define TERMINAL if already defined by commandline
++    if [ -z $TERMINAL ]; then
++        if command -v x-terminal-emulator &> /dev/null; then
++            echo "x-terminal-emulator found"
++            TERMINAL="x-terminal-emulator -e "
++        elif command -v gnome-terminal &> /dev/null; then
++            echo "gnome-terminal found"
++            TERMINAL="gnome-terminal -- "
++        elif command -v xterm &> /dev/null; then
++            echo "xterm found"
++            TERMINAL="xterm -e "
++        else
++            echo "No terminal recognized. Please install x-terminal-emulator or gnome-terminal or xterm."
++            echo "Or define your own terminal alternatively."
++            echo "Type ./debug_memtest.sh -h for more information"
++            exit 1
++        fi
++    fi
++}
++
++Make() {
++    make debug DEBUG=1
++    ret_val=$?
++
++    if [[ $ret_val -ne 0 ]] ; then
++        echo "Make failed with return value: $ret_val"
++        exit 1
++    fi
++}
++
++
++# Retrieve addresses from code (not used in this version)
++# Get_Offsets() {
++# IMAGEBASE=$(grep -P '#define\tIMAGE_BASE' header.S | cut -f3)
++# BASEOFCODE=$(grep -P '#define\tBASE_OF_CODE' header.S | cut -f3)
++
++# TODO: get RELOCADDR and DATA
++# }
++
++Init() {
++
++    QEMU="qemu-system-x86_64"
++    QEMU_FLAGS=" -bios OVMF.fd"
++    QEMU_FLAGS+=" -hda fat:rw:hda-contents -net none"
++    QEMU_FLAGS+=" -drive if=pflash,format=raw,readonly=on,file=OVMF_CODE.fd"
++    QEMU_FLAGS+=" -drive if=pflash,format=raw,file=OVMF_VARS.fd"
++
++    # Define offsets for loading of symbol-table
++    IMAGEBASE=0x200000
++    BASEOFCODE=0x1000
++    DATA=0x23000
++    RELOCADDR=0x400000
++
++    printf -v OFFSET "0x%X" $(($IMAGEBASE + $BASEOFCODE))
++    printf -v DATAOFFSET "0x%X" $(($IMAGEBASE + $BASEOFCODE + $DATA))
++    printf -v RELOCDATA "0x%X" $(($ERLOCADDR + $DATA))
++
++    GDB_FILE="gdbscript"
++
++    # Check if gdbscript exists. If not, create one.
++    if [ ! -f $GDB_FILE ]
++    then
++        echo "Creating gdbscript.."
++
++        echo "set pagination off" > $GDB_FILE
++
++        if [ -z "$OFFSET" ] || [ -z "$RELOCADDR" ]; then
++            echo "OFFSET or RELOCADDR is not set."
++            exit 1
++        fi
++
++        echo "add-symbol-file memtest.debug $OFFSET -s .data $DATAOFFSET" >> $GDB_FILE
++        echo "add-symbol-file memtest.debug $RELOCADDR -s .data $RELOCDATA" >> $GDB_FILE
++
++        echo "b main" >> $GDB_FILE
++        echo "commands" >> $GDB_FILE
++        echo "layout src" >> $GDB_FILE
++        echo "delete 1" >> $GDB_FILE
++        echo "end" >> $GDB_FILE
++
++        echo "b run_at" >> $GDB_FILE
++
++        echo "shell sleep 0.5" >> $GDB_FILE
++        echo "target remote localhost:1234" >> $GDB_FILE
++        echo "info b" >> $GDB_FILE
++        echo "c" >> $GDB_FILE
++    fi
++
++    if [ ! -f ldscripts/memtest_shared.lds ]; then
++        echo "'memtest_shared.lds' does not exist."
++        exit 1
++    fi
++
++    sed '/DISCARD/d' ldscripts/memtest_shared.lds > memtest_shared_debug.lds
++
++    if [ ! -f memtest_shared_debug.lds ]; then
++        echo "Creation of 'memtest_shared_debug.lds' failed."
++        exit 1
++    fi
++}
++
++Prepare_Directory() {
++    # Create dir hda-contents and a boot directory
++    mkdir -p hda-contents/EFI/boot
++
++    if [ ! -d hda-contents ]; then
++        echo "Creation of directoeyy hda-contents failed."
++        exit 1
++    fi
++
++    # Copy memtest.efi to hda-contents
++    cp memtest.efi hda-contents/
++    cp memtest.efi hda-contents/EFI/boot/BOOT_X64.efi
++
++    # Copy OVMF* files from /usr/share
++    if [ ! -f OVMF.fd ] || [ ! -f OVMF_VARS.fd ] || [ ! -f OVMF_CODE.fd ]; then
++        cp /usr/share/ovmf/OVMF.fd .
++        cp /usr/share/OVMF/OVMF_CODE.fd .
++        cp /usr/share/OVMF/OVMF_VARS.fd .
++    fi
++}
++
++# Global checks
++Check
++
++# Initialize
++Init
++
++# Build
++Make
++
++# Create needed directories and move efi binary to appropriate location
++Prepare_Directory
++
++# Run QEMU and launch second terminal,
++# wait for connection via gdb
++$TERMINAL gdb -x $GDB_FILE &
++$QEMU $QEMU_FLAGS -s -S
+diff --git a/build64/ldscripts/memtest_shared.lds b/build64/ldscripts/memtest_shared.lds
+index ef82e65..84a92e0 100644
+--- a/build64/ldscripts/memtest_shared.lds
++++ b/build64/ldscripts/memtest_shared.lds
+@@ -52,5 +52,6 @@ SECTIONS {
+ 		. = ALIGN(256);
+ 		_end = .;
+ 	}
++
+ 	/DISCARD/ : { *(*) }
+ }
+diff --git a/build64/ldscripts/memtest_shared.lds.save b/build64/ldscripts/memtest_shared.lds.save
+new file mode 100644
+index 0000000..d328688
+--- /dev/null
++++ b/build64/ldscripts/memtest_shared.lds.save
+@@ -0,0 +1,56 @@
++OUTPUT_FORMAT("elf64-x86-64");
++OUTPUT_ARCH(i386:x86-64);
++
++ENTRY(startup64);
++SECTIONS {
++	. = 0;
++	.text : {
++		_start = .;
++		*(.text)
++		*(.text.*)
++		*(.plt)
++		_etext = . ;
++	} = 0x9090
++	.rodata : {
++		*(.rodata)
++		*(.rodata.*)
++	}
++	.dynsym     : { *(.dynsym) }
++	.dynstr     : { *(.dynstr) }
++	.hash       : { *(.hash) }
++	.gnu.hash   : { *(.gnu.hash) }
++	.dynamic    : { *(.dynamic) }
++
++	.rela.text    : { *(.rela.text   .rela.text.*) }
++	.rela.rodata  : { *(.rela.rodata .rela.rodata.*) }
++	.rela.data    : { *(.rela.data   .rela.data.*) }
++	.rela.got     : { *(.rela.got    .rela.got.*) }
++	.rela.plt     : { *(.rela.plt    .rela.plt.*) }
++
++	. = ALIGN(4);
++	.data : {
++		 _data = .;
++		*(.data)
++		*(.data.*)
++	}
++	.got : {
++		*(.got.plt)
++		*(.got)
++		_edata = . ;
++	}
++	. = ALIGN(4);
++	.bss : {
++		_bss = .;
++		*(.dynbss)
++		*(.bss)
++		*(.bss.*)
++		*(COMMON)
++		. = ALIGN(16);
++		_stacks = .;
++		*(.stacks)
++		/* _end must be at least 256 byte aligned */
++		. = ALIGN(256);
++		_end = .;
++
++
++}
+diff --git a/lib/string.c b/lib/string.c
+index dfe8274..1514a73 100644
+--- a/lib/string.c
++++ b/lib/string.c
+@@ -9,7 +9,6 @@
+ // By Chris Brady
+ 
+ #include <stddef.h>
+-#include <stdint.h>
+ 
+ #include "string.h"
+ 
+@@ -32,6 +31,29 @@ void reverse(char s[])
+ // Public Functions
+ //------------------------------------------------------------------------------
+ 
++int memcmp(const void *s1, const void *s2, size_t n)
++{
++    const unsigned char *src1 = s1, *src2 = s2;
++
++    for (size_t i = 0; i < n; i++) {
++        if (src1[i] != src2[i]) {
++            return (int)src1[i] - (int)src2[i];
++        }
++    }
++    return 0;
++}
++
++#ifdef DEBUG_GDB
++void *memcpy (void *dest, const void *src, size_t len)
++{
++  char *d = dest;
++  const char *s = src;
++  while (len--)
++    *d++ = *s++;
++  return dest;
++}
++#endif
++
+ void *memmove(void *dest, const void *src, size_t n)
+ {
+     char *d = (char *)dest, *s = (char *)src;
+@@ -53,6 +75,38 @@ void *memmove(void *dest, const void *src, size_t n)
+     return dest;
+ }
+ 
++#ifdef DEBUG_GDB
++void *memset (void *dest, int val, size_t len)
++{
++  unsigned char *ptr = dest;
++  while (len-- > 0)
++    *ptr++ = val;
++  return dest;
++}
++#endif
++
++size_t strlen(const char *s)
++{
++    size_t len = 0;
++    while (*s++) {
++        len++;
++    }
++    return len;
++}
++
++int strncmp(const char *s1, const char *s2, size_t n)
++{
++    for (size_t i = 0; i < n; i++) {
++        if (s1[i] != s2[i]) {
++            return (int)s1[i] - (int)s2[i];
++        }
++        if (s1[i] == '\0') {
++            return 0;
++        }
++    }
++    return 0;
++}
++
+ char *strstr(const char *haystack, const char *needle)
+ {
+     size_t haystack_len = strlen(haystack);
+@@ -92,19 +146,4 @@ char *itoa(int num, char *str)
+     reverse(str);
+ 
+     return str;
+-}
+-
+-uint32_t hexstr2int(const char *hexstr) {
+-    uint32_t ival = 0;
+-    while (*hexstr) {
+-        uint8_t b = *hexstr++;
+-
+-        if (b >= '0' && b <= '9') b = b - '0';
+-        else if (b >= 'a' && b <='f') b = b - 'a' + 10;
+-        else if (b >= 'A' && b <='F') b = b - 'A' + 10;
+-        else return 0;
+-
+-        ival = (ival << 4) | (b & 0xF);
+-    }
+-    return ival;
+-}
++}
+\ No newline at end of file
+diff --git a/lib/string.h b/lib/string.h
+index 62f3578..a15665d 100644
+--- a/lib/string.h
++++ b/lib/string.h
+@@ -36,7 +36,11 @@ static inline int memcmp(const void *s1, const void *s2, size_t n)
+  * not overlap.
+  * void *memcpy(void *dst, const void *src, size_t n);
+  */
+-#define memcpy(d, s, n) __builtin_memcpy((d), (s), (n))
++#ifndef DEBUG_GDB
++    #define memcpy(d, s, n) __builtin_memcpy((d), (s), (n))
++#else
++    void *memcpy (void *dest, const void *src, size_t len);
++#endif
+ 
+ /**
+  * Copies n bytes from the memory area pointed to by src to the memory area
+@@ -50,7 +54,12 @@ void *memmove(void *dest, const void *src, size_t n);
+  * value c.
+  * void *memset(void *s, int c, size_t n);
+  */
+-#define memset(s, c, n) __builtin_memset((s), (c), (n))
++
++#ifndef DEBUG_GDB
++    #define memset(s, c, n) __builtin_memset((s), (c), (n))
++#else
++    void *memset (void *dest, int val, size_t len);
++#endif
+ 
+ /**
+  * Returns the string length, excluding the terminating null character.
+@@ -96,11 +105,4 @@ char *strstr(const char *haystack, const char *needle);
+ 
+ char *itoa(int num, char *str);
+ 
+-/**
+- * Convert a hex string to the corresponding 32-bit uint value.
+- * returns 0 if a non-hex char is found (not 0-9/a-f/A-F).
+- */
+-
+-uint32_t hexstr2int(const char *hexstr);
+-
+ #endif // STRING_H
+diff --git a/system/cpuinfo.c b/system/cpuinfo.c
+index 26e3e02..97a3b82 100644
+--- a/system/cpuinfo.c
++++ b/system/cpuinfo.c
+@@ -1,10 +1,11 @@
+ // SPDX-License-Identifier: GPL-2.0
+ // Copyright (C) 2020-2022 Martin Whitaker.
+-// Copyright (C) 2004-2023 Sam Demeulemeester
+ //
+ // Derived from an extract of memtest86+ init.c:
+ //
+ // MemTest86+ V5 Specific code (GPL V2.0)
++// By Samuel DEMEULEMEESTER, sdemeule@memtest.org
++// http://www.canardpc.com - http://www.memtest.org
+ // ------------------------------------------------
+ // init.c - MemTest-86  Version 3.6
+ //
+@@ -23,7 +24,6 @@
+ #include "config.h"
+ #include "pmem.h"
+ #include "vmem.h"
+-#include "memctrl.h"
+ #include "memsize.h"
+ #include "hwquirks.h"
+ 
+@@ -41,6 +41,8 @@
+ 
+ const char  *cpu_model = NULL;
+ 
++uint16_t    imc_type = 0;
++
+ int         l1_cache = 0;
+ int         l2_cache = 0;
+ int         l3_cache = 0;
+@@ -50,6 +52,8 @@ uint32_t    l2_cache_speed  = 0;
+ uint32_t    l3_cache_speed  = 0;
+ uint32_t    ram_speed = 0;
+ 
++bool        no_temperature = false;
++
+ uint32_t    clks_per_msec = 0;
+ 
+ //------------------------------------------------------------------------------
+@@ -86,13 +90,6 @@ static void determine_cache_size()
+         }
+         // Zhaoxin CPU only
+         /* fall through */
+-      case 'V':
+-        // Vortex86
+-        if (cpuid_info.vendor_id.str[0] == 'V' && cpuid_info.version.family < 6) {
+-          // Only family 6 have cache info
+-          break;
+-        }
+-        /* fall through */
+       case 'G':
+         if (cpuid_info.vendor_id.str[9] == 'N') {
+           // National Semiconductor
+@@ -307,58 +304,38 @@ static void determine_imc(void)
+         switch (cpuid_info.version.extendedFamily)
+         {
+           case 0x0:
+-            imc.family = IMC_K8;  // Old K8
++            imc_type = IMC_K8;  // Old K8
+             break;
+           case 0x1:
+           case 0x2:
+-            imc.family = IMC_K10; // K10 (Family 10h & 11h)
++            imc_type = IMC_K10; // K10 (Family 10h & 11h)
+             break;
+           case 0x3:
+-            imc.family = IMC_K12; // A-Series APU (Family 12h)
++            imc_type = IMC_K12; // A-Series APU (Family 12h)
+             break;
+           case 0x5:
+-            imc.family = IMC_K14; // C- / E- / Z- Series APU (Family 14h)
++            imc_type = IMC_K14; // C- / E- / Z- Series APU (Family 14h)
+             break;
+           case 0x6:
+-            imc.family = IMC_K15; // FX Series (Family 15h)
++            imc_type = IMC_K15; // FX Series (Family 15h)
+             break;
+           case 0x7:
+-            imc.family = IMC_K16; // Kabini & related (Family 16h)
++            imc_type = IMC_K16; // Kabini & related (Family 16h)
+             break;
+           case 0x8:
+-            imc.family = IMC_K17; // Zen & Zen2 (Family 17h)
++            imc_type = IMC_K17; // Zen & Zen2 (Family 17h)
+             break;
+           case 0x9:
+-            imc.family = IMC_K18; // Hygon (Family 18h)
++            imc_type = IMC_K18; // Hygon (Family 18h)
+             break;
+           case 0xA:
+-            switch(cpuid_info.version.extendedModel) {
+-              case 0:
+-                imc.family = IMC_K19_CHL; // Zen3 (Threadripper - Chagall sWRX8)
+-                break;
+-              case 1:
+-                imc.family = IMC_K19_STK; // Zen4 (Threadripper - Storm Peak TR5)
+-                break;
+-              case 2:
+-                imc.family = IMC_K19_VRM; // Zen3 (Family 19h - Vermeer AM4)
+-                break;
+-              case 4:
+-                imc.family = IMC_K19_RBT; // Zen3+ (Family 19h - Rembrandt FP7 & AM5 FTV)
+-                break;
+-              case 5:
+-                imc.family = IMC_K19_CZN; // Zen3 APU (Family 19h - Cezanne FP6)
+-                break;
+-              case 6:
+-                imc.family = IMC_K19_RPL; // Zen4 (Family 19h - Raphael AM5)
+-                break;
+-              case 7:
+-                imc.family = IMC_K19_PHX; // Zen4 (Family 19h - Phoenix FP7/FP8)
+-                break;
++            if (cpuid_info.version.extendedModel == 5) {
++                imc_type = IMC_K19_CZN; // AMD Cezanne APU (Model 0x50-5F - Family 19h)
++            } else if (cpuid_info.version.extendedModel >= 6) {
++                imc_type = IMC_K19_RPL; // Zen4 (Family 19h)
++            } else {
++                imc_type = IMC_K19;     // Zen3 (Family 19h)
+             }
+-            break;
+-          case 0xB:
+-            imc.family = IMC_K19_GRG; // Zen5 APU (Family 19h - Granite Ridge)
+-            break;
+           default:
+             break;
+         }
+@@ -372,17 +349,16 @@ static void determine_imc(void)
+           case 0x5:
+             switch (cpuid_info.version.extendedModel) {
+               case 2:
+-                imc.family = IMC_NHM;         // Core i3/i5 1st Gen 45 nm (Nehalem/Bloomfield)
++                imc_type = IMC_NHM;         // Core i3/i5 1st Gen 45 nm (Nehalem/Bloomfield)
+                 break;
+               case 3:
+-                imc.family = IMC_CLT;
+-                enable_temperature = false;   // Atom Clover Trail
++                no_temperature = true;      // Atom Clover Trail
+                 break;
+               case 4:
+-                imc.family = IMC_HSW_ULT;     // Core 4th Gen (Haswell-ULT)
++                imc_type = IMC_HSW_ULT;     // Core 4th Gen (Haswell-ULT)
+                 break;
+               case 5:
+-                imc.family = IMC_SKL_SP;      // Skylake/Cascade Lake/Cooper Lake (Server)
++                imc_type = IMC_SKL_SP;      // Skylake/Cascade Lake/Cooper Lake (Server)
+                 break;
+               default:
+                 break;
+@@ -391,22 +367,18 @@ static void determine_imc(void)
+ 
+           case 0x6:
+             switch (cpuid_info.version.extendedModel) {
+-              case 2:
+-                imc.family = IMC_TNC;         // Atom Tunnel Creek / Lincroft
+-                enable_temperature = false;
+-                break;
+               case 3:
+-                imc.family = IMC_CDT;         // Atom Cedar Trail
+-                enable_temperature = false;
++                imc_type = IMC_CDT;         // Atom Cedar Trail
++                no_temperature = true;
+                 break;
+               case 4:
+-                imc.family = IMC_HSW;         // Core 4th Gen (Haswell w/ GT3e)
++                imc_type = IMC_HSW;         // Core 4th Gen (Haswell w/ GT3e)
+                 break;
+               case 5:
+-                imc.family = IMC_BDW_DE;      // Broadwell-DE (Server)
++                imc_type = IMC_BDW_DE;      // Broadwell-DE (Server)
+                 break;
+               case 6:
+-                imc.family = IMC_CNL;         // Cannon Lake
++                imc_type = IMC_CNL;         // Cannon Lake
+                 break;
+               default:
+                 break;
+@@ -416,19 +388,19 @@ static void determine_imc(void)
+           case 0x7:
+             switch (cpuid_info.version.extendedModel) {
+               case 0x3:
+-                imc.family = IMC_BYT;         // Atom Bay Trail
++                imc_type = IMC_BYT;         // Atom Bay Trail
+                 break;
+               case 0x4:
+-                imc.family = IMC_BDW;         // Core 5th Gen (Broadwell)
++                imc_type = IMC_BDW;         // Core 5th Gen (Broadwell)
+                 break;
+               case 0x9:
+-                imc.family = IMC_ADL;         // Core 12th Gen (Alder Lake-P)
++                imc_type = IMC_ADL;         // Core 12th Gen (Alder Lake-P)
+                 break;
+               case 0xA:
+-                imc.family = IMC_RKL;         // Core 11th Gen (Rocket Lake)
++                imc_type = IMC_RKL;         // Core 11th Gen (Rocket Lake)
+                 break;
+               case 0xB:
+-                imc.family = IMC_RPL;         // Core 13th Gen (Raptor Lake)
++                imc_type = IMC_RPL;         // Core 13th Gen (Raptor Lake)
+                 break;
+               default:
+                 break;
+@@ -438,19 +410,19 @@ static void determine_imc(void)
+           case 0xA:
+             switch (cpuid_info.version.extendedModel) {
+               case 0x1:
+-                imc.family = IMC_NHM_E;       // Core i7 1st Gen 45 nm (NHME)
++                imc_type = IMC_NHM_E;       // Core i7 1st Gen 45 nm (NHME)
+                 break;
+               case 0x2:
+-                imc.family = IMC_SNB;         // Core 2nd Gen (Sandy Bridge)
++                imc_type = IMC_SNB;         // Core 2nd Gen (Sandy Bridge)
+                 break;
+               case 0x3:
+-                imc.family = IMC_IVB;         // Core 3rd Gen (Ivy Bridge)
++                imc_type = IMC_IVB;         // Core 3rd Gen (Ivy Bridge)
+                 break;
+               case 0x6:
+-                imc.family = IMC_ICL_SP;      // Ice Lake-SP/DE (Server)
++                imc_type = IMC_ICL_SP;      // Ice Lake-SP/DE (Server)
+                 break;
+               case 0x9:
+-                imc.family = IMC_ADL;         // Core 12th Gen (Alder Lake-S)
++                imc_type = IMC_ADL;         // Core 12th Gen (Alder Lake-S)
+                 break;
+               default:
+                 break;
+@@ -461,20 +433,18 @@ static void determine_imc(void)
+             switch (cpuid_info.version.extendedModel) {
+               case 0x1:
+                 if (cpuid_info.version.stepping > 9) {
+-                    imc.family = IMC_PNV;     // Atom PineView
+-                } else {
+-                    imc.family = IMC_SLT;     // Atom Silverthorne / Diamondvile
++                    imc_type = 0x0008;       // Atom PineView
+                 }
+-                enable_temperature = false;
++                no_temperature = true;
+                 break;
+               case 0x2:
+-                imc.family = IMC_WMR;         // Core i7 1st Gen 32 nm (Westmere)
++                imc_type = IMC_WMR;         // Core i7 1st Gen 32 nm (Westmere)
+                 break;
+               case 0x3:
+-                imc.family = IMC_HSW;         // Core 4th Gen (Haswell)
++                imc_type = IMC_HSW;         // Core 4th Gen (Haswell)
+                 break;
+               case 0x8:
+-                imc.family = IMC_TGL;         // Core 11th Gen (Tiger Lake-U)
++                imc_type = IMC_TGL;         // Core 11th Gen (Tiger Lake-U)
+                 break;
+               default:
+                 break;
+@@ -484,13 +454,13 @@ static void determine_imc(void)
+           case 0xD:
+             switch (cpuid_info.version.extendedModel) {
+               case 0x2:
+-                imc.family = IMC_SNB_E;       // Core 2nd Gen (Sandy Bridge-E)
++                imc_type = IMC_SNB_E;       // Core 2nd Gen (Sandy Bridge-E)
+                 break;
+               case 0x7:
+-                imc.family = IMC_ICL;         // Core 10th Gen (IceLake-Y)
++                imc_type = IMC_ICL;         // Core 10th Gen (IceLake-Y)
+                 break;
+               case 0x8:
+-                imc.family = IMC_TGL;         // Core 11th Gen (Tiger Lake-Y)
++                imc_type = IMC_TGL;         // Core 11th Gen (Tiger Lake-Y)
+                 break;
+               default:
+                 break;
+@@ -500,31 +470,28 @@ static void determine_imc(void)
+           case 0xE:
+             switch (cpuid_info.version.extendedModel) {
+               case 0x1:
+-                imc.family = IMC_NHM;         // Core i7 1st Gen 45 nm (Nehalem/Bloomfield)
++                imc_type = IMC_NHM;         // Core i7 1st Gen 45 nm (Nehalem/Bloomfield)
+                 break;
+               case 0x2:
+-                imc.family = IMC_SNB_E;       // Core 2nd Gen (Sandy Bridge-E)
++                imc_type = IMC_SNB_E;       // Core 2nd Gen (Sandy Bridge-E)
+                 break;
+               case 0x3:
+-                imc.family = IMC_IVB_E;       // Core 3rd Gen (Ivy Bridge-E)
++                imc_type = IMC_IVB_E;       // Core 3rd Gen (Ivy Bridge-E)
+                 break;
+               case 0x4:
+-                imc.family = IMC_SKL_UY;      // Core 6th Gen (Sky Lake-U/Y)
++                imc_type = IMC_SKL_UY;      // Core 6th Gen (Sky Lake-U/Y)
+                 break;
+               case 0x5:
+-                imc.family = IMC_SKL;         // Core 6th Gen (Sky Lake-S/H/E)
++                imc_type = IMC_SKL;         // Core 6th Gen (Sky Lake-S/H/E)
+                 break;
+               case 0x7:
+-                imc.family = IMC_ICL;         // Core 10th Gen (IceLake-U)
++                imc_type = IMC_ICL;         // Core 10th Gen (IceLake-U)
+                 break;
+               case 0x8:
+-                imc.family = IMC_KBL_UY;      // Core 7/8/9th Gen (Kaby/Coffee/Comet/Amber Lake-U/Y)
++                imc_type = IMC_KBL_UY;      // Core 7/8/9th Gen (Kaby/Coffee/Comet/Amber Lake-U/Y)
+                 break;
+               case 0x9:
+-                imc.family = IMC_KBL;         // Core 7/8/9th Gen (Kaby/Coffee/Comet Lake)
+-                break;
+-              case 0xB:
+-                imc.family = IMC_ADL_N;       // Core 12th Gen (Alder Lake-N - Gracemont E-Cores only)
++                imc_type = IMC_KBL;         // Core 7/8/9th Gen (Kaby/Coffee/Comet Lake)
+                 break;
+               default:
+                 break;
+@@ -534,13 +501,13 @@ static void determine_imc(void)
+           case 0xF:
+             switch (cpuid_info.version.extendedModel) {
+               case 0x3:
+-                imc.family = IMC_HSW_E;       // Core 3rd Gen (Haswell-E)
++                imc_type = IMC_HSW_E;       // Core 3rd Gen (Haswell-E)
+                 break;
+               case 0x4:
+-                imc.family = IMC_BDW_E;       // Broadwell-E (Server)
++                imc_type = IMC_BDW_E;       // Broadwell-E (Server)
+                 break;
+               case 0x8:
+-                imc.family = IMC_SPR;         // Sapphire Rapids (Server)
++                imc_type = IMC_SPR;         // Sapphire Rapids (Server)
+                 break;
+               default:
+                 break;
+@@ -843,7 +810,7 @@ static void determine_cpu_model(void)
+                 // All VIA/Centaur family values >= 6 have brand string
+                 break;
+             }
+-        } else {     // CyrixInstead
++        } else {                /* CyrixInstead */
+             switch (cpuid_info.version.family) {
+               case 4:
+                 switch (cpuid_info.version.model) {
+@@ -873,37 +840,6 @@ static void determine_cpu_model(void)
+             }
+         }
+         break;
+-
+-      case 'V':
+-        // Vortex86 SoC
+-        switch (cpuid_info.version.family) {
+-          case 5:
+-            switch (cpuid_info.version.model) {
+-              case 2:
+-                cpu_model = "Vortex86DX";
+-                l1_cache = 16;
+-                l2_cache = 256;
+-                break;
+-              case 8:
+-                cpu_model = "Vortex86MX/DX2";
+-                l1_cache = 16;
+-                l2_cache = 256;
+-                break;
+-              default:
+-                break;
+-            }
+-            break;
+-          case 6:
+-            // Other family 6 models have brand string
+-            cpu_model = "Vortex86EX";
+-            l1_cache = 16;
+-            l2_cache = 128;
+-            break;
+-          default:
+-            break;
+-        }
+-        break;
+-
+       default:
+         // Unknown processor - make a guess at the family.
+         switch (cpuid_info.version.family) {
+diff --git a/system/cpuinfo.h b/system/cpuinfo.h
+index df5fdde..7e2f97b 100644
+--- a/system/cpuinfo.h
++++ b/system/cpuinfo.h
+@@ -8,7 +8,7 @@
+  *
+  *//*
+  * Copyright (C) 2020-2022 Martin Whitaker.
+- * Copyright (C) 2004-2023 Sam Demeulemeester.
++ * Copyright (C) 2004-2022 Sam Demeulemeester.
+  */
+ 
+ #include <stdbool.h>
+@@ -47,14 +47,9 @@
+ #define IMC_KBL_UY      0x3030  // Core 7/8/9th Gen (Kaby/Coffee/Comet/Amber Lake-U/Y)
+ #define IMC_ICL         0x3040  // Core 10th Gen (IceLake-Y)
+ #define IMC_TGL         0x3050  // Core 11th Gen (Tiger Lake-U)
+-#define IMC_ADL_N       0x3061  // Core 12th Gen (Alder Lake-N - Gracemont E-Cores only)
+ 
+ #define IMC_BYT         0x4010  // Atom Bay Trail
+-#define IMC_SLT         0x4020  // Atom Silverthorne / Diamondville
+-#define IMC_PNV         0x4030  // Atom Pineview
+-#define IMC_CLT         0x4040  // Atom Clover Trail / Cloverview
+-#define IMC_CDT         0x4050  // Atom Cedar Trail / Cedarview
+-#define IMC_TNC         0x4060  // Atom Tunnel Creek / Lincroft
++#define IMC_CDT         0x4020  // Atom Cedar Trail
+ 
+ #define IMC_K8          0x8000  // Old K8
+ #define IMC_K10         0x8010  // K10 (Family 10h & 11h)
+@@ -64,21 +59,20 @@
+ #define IMC_K16         0x8050  // Kabini & related (Family 16h)
+ #define IMC_K17         0x8060  // Zen & Zen2 (Family 17h)
+ #define IMC_K18         0x8070  // Hygon (Family 18h)
+-#define IMC_K19_VRM     0x8080  // Zen3 (Family 19h - Vermeer)
++#define IMC_K19         0x8080  // Zen3 (Family 19h)
+ #define IMC_K19_CZN     0x8081  // Cezanne APU
+-#define IMC_K19_CHL     0x8090  // Zen3 Chagall TR
+-
+-#define IMC_K19_RBT     0x8100  // Zen3+ (Rembrandt)
+-#define IMC_K19_RPL     0x8110  // Zen4 (Raphael)
+-#define IMC_K19_PHX     0x8120  // Zen4 (Phoenix)
+-#define IMC_K19_STK     0x81A0  // Zen4 (Storm Peak)
+-#define IMC_K19_GRG     0x8150  // Zen5 (Granite Ridge)
++#define IMC_K19_RPL     0x8091  // Zen4 (Family 19h)
+ 
+ /**
+  * A string identifying the CPU make and model.
+  */
+ extern const char *cpu_model;
+ 
++/**
++ * A number identifying the integrated memory controller type.
++ */
++extern uint16_t imc_type;
++
+ /**
+  * The size of the L1 cache in KB.
+  */
+@@ -114,6 +108,11 @@ extern uint32_t l3_cache_speed;
+  */
+ extern uint32_t ram_speed;
+ 
++/**
++ * A flag indicating that we can't read the core temperature on this CPU.
++ */
++extern bool no_temperature;
++
+ /**
+  * The TSC clock speed in kHz. Assumed to be the nominal CPU clock speed.
+  */
+diff --git a/system/imc/amd_zen.c b/system/imc/amd_zen.c
+deleted file mode 100644
+index 75c6612..0000000
+--- a/system/imc/amd_zen.c
++++ /dev/null
+@@ -1,71 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-// Copyright (C) 2004-2023 Sam Demeulemeester
+-//
+-// ------------------------
+-//
+-// Platform-specific code for AMD Zen CPUs
+-//
+-
+-#include "cpuinfo.h"
+-#include "memctrl.h"
+-#include "msr.h"
+-#include "pci.h"
+-
+-#include "imc.h"
+-
+-#define AMD_SMN_UMC_BAR             0x050000
+-#define AMD_SMN_UMC_CHB_OFFSET      0x100000
+-#define AMD_SMN_UMC_DRAM_CONFIG     AMD_SMN_UMC_BAR + 0x200
+-#define AMD_SMN_UMC_DRAM_TIMINGS1   AMD_SMN_UMC_BAR + 0x204
+-#define AMD_SMN_UMC_DRAM_TIMINGS2   AMD_SMN_UMC_BAR + 0x208
+-
+-void get_imc_config_amd_zen(void)
+-{
+-    uint32_t smn_reg, offset;
+-    uint32_t reg_cha, reg_chb;
+-
+-    imc.tCL_dec = 0;
+-
+-    // Get Memory Mapped Register Base Address (Enable MMIO if needed)
+-    reg_cha = amd_smn_read(AMD_SMN_UMC_DRAM_CONFIG) & 0x7F;
+-    reg_chb = amd_smn_read(AMD_SMN_UMC_DRAM_CONFIG + AMD_SMN_UMC_CHB_OFFSET) & 0x7F;
+-
+-    offset = reg_cha ? 0x0 : AMD_SMN_UMC_CHB_OFFSET;
+-
+-    // Populate IMC width
+-    imc.width = (reg_cha && reg_chb) ? 128 : 64;
+-
+-    // Get DRAM Frequency
+-    smn_reg = amd_smn_read(AMD_SMN_UMC_DRAM_CONFIG + offset);
+-    if (imc.family >= IMC_K19_RBT) {
+-        imc.type = "DDR5";
+-        imc.freq = smn_reg & 0xFFFF;
+-        if ((smn_reg >> 18) & 1) imc.freq *= 2; // GearDown
+-    } else {
+-        imc.type = "DDR4";
+-        smn_reg = amd_smn_read(AMD_SMN_UMC_DRAM_CONFIG + offset) & 0x7F;
+-        imc.freq = (float)smn_reg * 66.67f;
+-    }
+-
+-    if (imc.freq < 200 || imc.freq > 12000) {
+-        imc.freq = 0;
+-        return;
+-    }
+-
+-    // Get Timings
+-    smn_reg = amd_smn_read(AMD_SMN_UMC_DRAM_TIMINGS1 + offset);
+-
+-    // CAS Latency (tCAS)
+-    imc.tCL = smn_reg & 0x3F;
+-
+-    // RAS Active to precharge (tRAS)
+-    imc.tRAS = (smn_reg >> 8) & 0x7F;
+-
+-    // RAS-To-CAS (tRC)
+-    imc.tRCD = (smn_reg >> 16) & 0x3F;
+-
+-    smn_reg = amd_smn_read(AMD_SMN_UMC_DRAM_TIMINGS2 + offset);
+-
+-    // RAS Precharge (tRP)
+-    imc.tRP = (smn_reg >> 16) & 0x3F;
+-}
+diff --git a/system/imc/imc.h b/system/imc/imc.h
+deleted file mode 100644
+index 3928f93..0000000
+--- a/system/imc/imc.h
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-// Copyright (C) 2004-2023 Sam Demeulemeester
+-#ifndef _IMC_H_
+-#define _IMC_H_
+-
+-/* Memory configuration Detection for AMD Zen CPUs */
+-void get_imc_config_amd_zen(void);
+-
+-/* Memory configuration Detection for Intel Sandy Bridge */
+-void get_imc_config_intel_snb(void);
+-
+-/* Memory configuration Detection for Intel Haswell */
+-void get_imc_config_intel_hsw(void);
+-
+-/* Memory configuration Detection for Intel Skylake */
+-void get_imc_config_intel_skl(void);
+-
+-/* Memory configuration Detection for Intel Ice Lake */
+-void get_imc_config_intel_icl(void);
+-
+-/* Memory configuration Detection for Intel Alder Lake */
+-void get_imc_config_intel_adl(void);
+-
+-#endif /* _IMC_H_ */
+diff --git a/system/imc/intel_adl.c b/system/imc/intel_adl.c
+deleted file mode 100644
+index 89895a2..0000000
+--- a/system/imc/intel_adl.c
++++ /dev/null
+@@ -1,100 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-// Copyright (C) 2004-2023 Sam Demeulemeester
+-//
+-// ------------------------
+-//
+-// Platform-specific code for Intel Alder Lake CPUs (ADL-S)
+-//
+-
+-#include "cpuinfo.h"
+-#include "memctrl.h"
+-#include "msr.h"
+-#include "pci.h"
+-#include "vmem.h"
+-
+-#include "imc.h"
+-
+-#define ADL_MMR_BASE_REG_LOW    0x48
+-#define ADL_MMR_BASE_REG_HIGH   0x4C
+-
+-#define ADL_MMR_WINDOW_RANGE    (1UL << 17)
+-#define ADL_MMR_BASE_MASK       0x3FFFFFE0000
+-
+-#define ADL_MMR_MC1_OFFSET      0x10000
+-#define ADL_MMR_CH1_OFFSET      0x800
+-
+-#define ADL_MMR_IC_DECODE       0xD800
+-#define ADL_MMR_CH0_DIMM_REG    0xD80C
+-#define ADL_MMR_MC0_REG         0xE000
+-#define ADL_MMR_ODT_TCL_REG     0xE070
+-#define ADL_MMR_MC_INIT_REG     0xE454
+-
+-#define ADL_MMR_SA_PERF_REG     0x5918
+-#define ADL_MMR_MC_BIOS_REG     0x5E04
+-#define ADL_MMR_BLCK_REG        0x5F60
+-
+-void get_imc_config_intel_adl(void)
+-{
+-    uint64_t mmio_reg;
+-    uint32_t cha, chb, offset;
+-    float bclk;
+-    uintptr_t *ptr;
+-    uint32_t *ptr32;
+-
+-    // Get Memory Mapped Register Base Address (Enable MMIO if needed)
+-    mmio_reg = pci_config_read32(0, 0, 0, ADL_MMR_BASE_REG_LOW);
+-    if (!(mmio_reg & 0x1)) {
+-        pci_config_write32( 0, 0, 0, ADL_MMR_BASE_REG_LOW, mmio_reg | 1);
+-        mmio_reg = pci_config_read32(0, 0, 0, ADL_MMR_BASE_REG_LOW);
+-        if (!(mmio_reg & 0x1)) return;
+-    }
+-
+-    mmio_reg |= (uint64_t)pci_config_read32(0, 0, 0, ADL_MMR_BASE_REG_HIGH) << 32;
+-    mmio_reg &= ADL_MMR_BASE_MASK;
+-
+-#ifndef __x86_64__
+-    if (mmio_reg >= (1ULL << 32)) return;    // MMIO is outside reachable range (> 32bit)
+-#endif
+-
+-    uintptr_t mchbar_addr = map_region(mmio_reg, ADL_MMR_WINDOW_RANGE, false);
+-
+-    // Get channel configuration & IMC width
+-    cha = *(uintptr_t*)(mchbar_addr + ADL_MMR_CH0_DIMM_REG);
+-    cha = ~cha ? (((cha >> 16) & 0x7F) + (cha & 0x7F)) : 0;
+-
+-    chb = *(uintptr_t*)(mchbar_addr + ADL_MMR_CH0_DIMM_REG + ADL_MMR_MC1_OFFSET);
+-    chb = ~chb ? (((chb >> 16) & 0x7F) + (chb & 0x7F)) : 0;
+-
+-    offset = cha ? 0x0 : ADL_MMR_MC1_OFFSET;
+-    imc.width = (cha && chb) ? 64 : 128;
+-
+-    // Get Memory Type (ADL supports DDR4 & DDR5)
+-    cha = *(uintptr_t*)(mchbar_addr + offset + ADL_MMR_IC_DECODE) & 0x7;
+-    imc.type = (cha == 1 || cha == 2) ? "DDR5" : "DDR4";
+-
+-    // Get SoC Base Clock
+-    ptr = (uintptr_t*)(mchbar_addr + ADL_MMR_BLCK_REG);
+-    bclk = (*ptr & 0xFFFFFFFF) / 1000.0f;
+-
+-    // Get Memory Clock (QClk), apply Gear & clock ratio
+-    ptr = (uintptr_t*)(mchbar_addr + ADL_MMR_SA_PERF_REG);
+-    imc.freq = ((*ptr >> 2) & 0xFF) * bclk;
+-
+-    ptr = (uintptr_t*)(mchbar_addr + ADL_MMR_MC_BIOS_REG);
+-    imc.freq <<= (*ptr >> 12) & 0x3;
+-
+-    if ((*ptr & 0xF00) == 0) {
+-        imc.freq *= 133.34f / 100.0f;
+-    }
+-
+-    // Get DRAM Timings
+-    ptr = (uintptr_t*)(mchbar_addr + offset + ADL_MMR_ODT_TCL_REG);
+-    imc.tCL = (*ptr >> 16) & 0x7F;
+-
+-    ptr = (uintptr_t*)(mchbar_addr + offset + ADL_MMR_MC0_REG);
+-    imc.tRP = *ptr & 0xFF;
+-
+-    ptr32 = (uint32_t*)((uintptr_t)mchbar_addr + offset + ADL_MMR_MC0_REG + 4);
+-    imc.tRAS = (*ptr32 >> 10) & 0x1FF;
+-    imc.tRCD = (*ptr32 >> 19) & 0xFF;
+-}
+diff --git a/system/imc/intel_hsw.c b/system/imc/intel_hsw.c
+deleted file mode 100644
+index 62a518e..0000000
+--- a/system/imc/intel_hsw.c
++++ /dev/null
+@@ -1,92 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-// Copyright (C) 2004-2023 Sam Demeulemeester
+-//
+-// ------------------------
+-//
+-// Platform-specific code for Intel Haswell CPUs (HSW)
+-//
+-
+-#include "cpuinfo.h"
+-#include "memctrl.h"
+-#include "msr.h"
+-#include "pci.h"
+-
+-#include "imc.h"
+-
+-#define HSW_MMR_BASE_REG    0x48
+-#define HSW_REG_MAIN_CHAN0  0x5004
+-#define HSW_REG_MAIN_CHAN1  0x5008
+-#define HSW_REG_MCH_CFG     0x5E04
+-#define HSW_REG_TIMING_CAS  0x4014
+-#define HSW_REG_TIMING_RCD  0x4000
+-
+-void get_imc_config_intel_hsw(void)
+-{
+-    uint32_t mmio_reg, mch_cfg, offset;
+-    uint32_t reg0, reg1;
+-    float cpu_ratio, dram_ratio;
+-    uintptr_t *ptr;
+-
+-    imc.type    = "DDR3";
+-    imc.tCL_dec = 0;
+-
+-    // Get Memory Mapped Register Base Address (Enable MMIO if needed)
+-    mmio_reg = pci_config_read32(0, 0, 0, HSW_MMR_BASE_REG);
+-    if (!(mmio_reg & 0x1)) {
+-        pci_config_write32( 0, 0, 0, HSW_MMR_BASE_REG, mmio_reg | 1);
+-        mmio_reg = pci_config_read32(0, 0, 0, HSW_MMR_BASE_REG);
+-        if (!(mmio_reg & 0x1)) return;
+-    }
+-    mmio_reg &= 0xFFFFC000;
+-
+-    // Get DRAM Ratio
+-    ptr = (uintptr_t*)((uintptr_t)mmio_reg + HSW_REG_MCH_CFG);
+-    mch_cfg = *ptr & 0xFFFF;
+-
+-    if ((mch_cfg >> 8) & 1) {
+-        dram_ratio = (float)(*ptr & 0x1F) * (100.0f / 100.0f);
+-    } else {
+-        dram_ratio = (float)(*ptr & 0x1F) * (133.34f / 100.0f);
+-    }
+-
+-    // Get CPU Ratio
+-    rdmsr(MSR_IA32_PLATFORM_INFO, reg0, reg1);
+-    cpu_ratio = (float)((reg0 >> 8) & 0xFF);
+-
+-    if (!cpu_ratio) return;
+-
+-    // Compute DRAM Frequency
+-    imc.freq = ((clks_per_msec / 1000) / cpu_ratio) * dram_ratio * 2;
+-
+-    if (imc.freq < 350 || imc.freq > 5000) {
+-        imc.freq = 0;
+-        return;
+-    }
+-
+-    // Get Main Memory Controller Register for both channels
+-    ptr = (uintptr_t*)((uintptr_t)mmio_reg + HSW_REG_MAIN_CHAN0);
+-    reg0 = *ptr & 0xFFFF;
+-
+-    ptr = (uintptr_t*)((uintptr_t)mmio_reg + HSW_REG_MAIN_CHAN1);
+-    reg1 = *ptr & 0xFFFF;
+-
+-    // Populate IMC width
+-    imc.width = (reg0 && reg1) ? 128 : 64;
+-
+-    // Define offset (ie: which channel is really used)
+-    offset = reg0 ? 0x0000 : 0x4000;
+-
+-    // CAS Latency (tCAS)
+-    ptr = (uintptr_t*)((uintptr_t)mmio_reg + offset + HSW_REG_TIMING_CAS);
+-    imc.tCL = *ptr & 0x1F;
+-
+-    // RAS-To-CAS (tRCD)
+-    ptr = (uintptr_t*)((uintptr_t)mmio_reg + offset + HSW_REG_TIMING_RCD);
+-    imc.tRCD = *ptr & 0x1F;
+-
+-    // RAS Precharge (tRP)
+-    imc.tRP = (*ptr >> 5) & 0x1F;
+-
+-    // RAS Active to precharge (tRAS)
+-    imc.tRAS = (*ptr >> 10) & 0x3F;
+-}
+diff --git a/system/imc/intel_icl.c b/system/imc/intel_icl.c
+deleted file mode 100644
+index bedc055..0000000
+--- a/system/imc/intel_icl.c
++++ /dev/null
+@@ -1,99 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-// Copyright (C) 2004-2023 Sam Demeulemeester
+-//
+-// ------------------------
+-//
+-// Platform-specific code for Intel IceLake CPUs (ICL)
+-//
+-
+-#include "cpuinfo.h"
+-#include "memctrl.h"
+-#include "msr.h"
+-#include "pci.h"
+-#include "vmem.h"
+-
+-#include "imc.h"
+-
+-#define ICL_MMR_BASE_REG_LOW    0x48
+-#define ICL_MMR_BASE_REG_HIGH   0x4C
+-#define ICL_MMR_TIMINGS         0x4000
+-#define ICL_MMR_TIMING_CAS      0x4070
+-#define ICL_MMR_MAD_CHAN0       0x500C
+-#define ICL_MMR_MAD_CHAN1       0x5010
+-#define ICL_MMR_DRAM_CLOCK      0x5E00
+-
+-#define ICL_MMR_MC_BIOS_REG     0x5E04
+-#define ICL_MMR_BLCK_REG        0x5F60
+-
+-#define ICL_MMR_WINDOW_RANGE    (1UL << 15)
+-
+-#define ICL_MMR_BASE_MASK       0x7FFFFF8000
+-#define ICL_MMR_MAD_IN_USE_MASK 0x003F003F
+-
+-void get_imc_config_intel_icl(void)
+-{
+-    uint64_t mmio_reg;
+-    uint32_t reg0, reg1, offset;
+-    float bclk;
+-    uintptr_t *ptr;
+-
+-    // Get Memory Mapped Register Base Address (Enable MMIO if needed)
+-    mmio_reg = pci_config_read32(0, 0, 0, ICL_MMR_BASE_REG_LOW);
+-    if (!(mmio_reg & 0x1)) {
+-        pci_config_write32( 0, 0, 0, ICL_MMR_BASE_REG_LOW, mmio_reg | 1);
+-        mmio_reg = pci_config_read32(0, 0, 0, ICL_MMR_BASE_REG_LOW);
+-        if (!(mmio_reg & 0x1)) return;
+-    }
+-
+-    mmio_reg |= (uint64_t)pci_config_read32(0, 0, 0, ICL_MMR_BASE_REG_HIGH) << 32;
+-    mmio_reg &= ICL_MMR_BASE_MASK;
+-
+-#ifndef __x86_64__
+-    if (mmio_reg >= (1ULL << 32)) return;    // MMIO is outside reachable range
+-#endif
+-
+-    uintptr_t mchbar_addr = map_region(mmio_reg, ICL_MMR_WINDOW_RANGE, false);
+-
+-    imc.type = "DDR4";
+-
+-    // Get SoC Base Clock
+-    ptr = (uintptr_t*)(mchbar_addr + ICL_MMR_BLCK_REG);
+-    bclk = (*ptr & 0xFFFFFFFF) / 1000.0f;
+-
+-    // Get Memory Clock (QClk), apply Gear & clock ratio
+-    ptr = (uintptr_t*)(mchbar_addr + ICL_MMR_MC_BIOS_REG);
+-    imc.freq = (*ptr & 0xFF) * bclk;
+-
+-    if (*ptr & 0x10000) {
+-        imc.freq *= 2;
+-    }
+-
+-    if ((*ptr & 0xF00) == 0) {
+-        imc.freq *= 133.34f / 100.0f;
+-    }
+-
+-    // Get Main Memory Controller Register for both channels
+-    ptr = (uintptr_t*)(mchbar_addr + ICL_MMR_MAD_CHAN0);
+-    reg0 = *ptr & ICL_MMR_MAD_IN_USE_MASK;
+-
+-    ptr = (uintptr_t*)(mchbar_addr + ICL_MMR_MAD_CHAN1);
+-    reg1 = *ptr & ICL_MMR_MAD_IN_USE_MASK;
+-
+-    // Populate IMC width
+-    imc.width = (reg0 && reg1) ? 128 : 64;
+-
+-    // Define offset (ie: which channel is really used)
+-    offset = reg0 ? 0x0000 : 0x0400;
+-
+-    // CAS Latency (tCAS)
+-    ptr = (uintptr_t*)(mchbar_addr + offset + ICL_MMR_TIMING_CAS);
+-    imc.tCL = (*ptr >> 16) & 0x1F;
+-    imc.tCL_dec = 0;
+-
+-    // RAS-To-CAS (tRCD) & RAS Precharge (tRP)
+-    ptr = (uintptr_t*)(mchbar_addr + offset + ICL_MMR_TIMINGS);
+-    imc.tRP = imc.tRCD = *ptr & 0x3F;
+-
+-    // RAS Active to precharge (tRAS)
+-    imc.tRAS = (*ptr >> 9) & 0x7F;
+-}
+diff --git a/system/imc/intel_skl.c b/system/imc/intel_skl.c
+deleted file mode 100644
+index 790d8f9..0000000
+--- a/system/imc/intel_skl.c
++++ /dev/null
+@@ -1,105 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-// Copyright (C) 2004-2023 Sam Demeulemeester
+-//
+-// ------------------------
+-//
+-// Platform-specific code for Intel Skylake CPUs (SKL)
+-//
+-
+-#include "cpuinfo.h"
+-#include "memctrl.h"
+-#include "msr.h"
+-#include "pci.h"
+-#include "vmem.h"
+-
+-#include "imc.h"
+-
+-#define SKL_MMR_BASE_REG_LOW    0x48
+-#define SKL_MMR_BASE_REG_HIGH   0x4C
+-#define SKL_MMR_TIMINGS         0x4000
+-#define SKL_MMR_SCHEDULER_CONF  0x401C
+-#define SKL_MMR_TIMING_CAS      0x4070
+-#define SKL_MMR_MAD_CHAN0       0x500C
+-#define SKL_MMR_MAD_CHAN1       0x5010
+-#define SKL_MMR_DRAM_CLOCK      0x5E00
+-
+-#define SKL_MMR_WINDOW_RANGE    (1UL << 15)
+-
+-#define SKL_MMR_BASE_MASK       0x7FFFFF8000
+-#define SKL_MMR_MAD_IN_USE_MASK 0x003F003F
+-
+-void get_imc_config_intel_skl(void)
+-{
+-    uint64_t mmio_reg;
+-    uint32_t reg0, reg1, offset;
+-    float cpu_ratio, dram_ratio;
+-    uintptr_t *ptr;
+-
+-    // Get Memory Mapped Register Base Address (Enable MMIO if needed)
+-    mmio_reg = pci_config_read32(0, 0, 0, SKL_MMR_BASE_REG_LOW);
+-    if (!(mmio_reg & 0x1)) {
+-        pci_config_write32( 0, 0, 0, SKL_MMR_BASE_REG_LOW, mmio_reg | 1);
+-        mmio_reg = pci_config_read32(0, 0, 0, SKL_MMR_BASE_REG_LOW);
+-        if (!(mmio_reg & 0x1)) return;
+-    }
+-
+-    mmio_reg |= (uint64_t)pci_config_read32(0, 0, 0, SKL_MMR_BASE_REG_HIGH) << 32;
+-    mmio_reg &= SKL_MMR_BASE_MASK;
+-
+-#ifndef __x86_64__
+-    if (mmio_reg >= (1ULL << 32)) return;    // MMIO is outside reachable range
+-#endif
+-
+-    uintptr_t mchbar_addr = map_region(mmio_reg, SKL_MMR_WINDOW_RANGE, false);
+-
+-    // Get DRAM Ratio
+-    ptr = (uintptr_t*)(mchbar_addr + SKL_MMR_DRAM_CLOCK);
+-    reg0 = *ptr & 0xF;
+-
+-    if (reg0 < 3) return;
+-
+-    dram_ratio = reg0 * (133.34f / 100.0f);
+-
+-    // Get CPU Ratio
+-    rdmsr(MSR_IA32_PLATFORM_INFO, reg0, reg1);
+-    cpu_ratio = (float)((reg0 >> 8) & 0xFF);
+-
+-    if (!cpu_ratio) return;
+-
+-    // Compute DRAM Frequency
+-    imc.freq = ((clks_per_msec / 1000) / cpu_ratio) * dram_ratio * 2;
+-
+-    if (imc.freq < 150 || imc.freq > 8000) {
+-        imc.freq = 0;
+-        return;
+-    }
+-
+-    // Get Main Memory Controller Register for both channels
+-    ptr = (uintptr_t*)(mchbar_addr + SKL_MMR_MAD_CHAN0);
+-    reg0 = *ptr & SKL_MMR_MAD_IN_USE_MASK;
+-
+-    ptr = (uintptr_t*)(mchbar_addr + SKL_MMR_MAD_CHAN1);
+-    reg1 = *ptr & SKL_MMR_MAD_IN_USE_MASK;
+-
+-    // Populate IMC width
+-    imc.width = (reg0 && reg1) ? 128 : 64;
+-
+-    // Define offset (ie: which channel is really used)
+-    offset = reg0 ? 0x0000 : 0x0400;
+-
+-    // SKL supports DDR3 & DDR4. Check DDR Type.
+-    ptr = (uintptr_t*)(mchbar_addr + offset + SKL_MMR_SCHEDULER_CONF);
+-    imc.type = (*ptr & 0x3) ? "DDR3" : "DDR4";
+-
+-    // CAS Latency (tCAS)
+-    ptr = (uintptr_t*)(mchbar_addr + offset + SKL_MMR_TIMING_CAS);
+-    imc.tCL = (*ptr >> 16) & 0x1F;
+-    imc.tCL_dec = 0;
+-
+-    // RAS-To-CAS (tRCD) & RAS Precharge (tRP)
+-    ptr = (uintptr_t*)(mchbar_addr + offset + SKL_MMR_TIMINGS);
+-    imc.tRP = imc.tRCD = *ptr & 0x3F;
+-
+-    // RAS Active to precharge (tRAS)
+-    imc.tRAS = (*ptr >> 8) & 0x7F;
+-}
+diff --git a/system/imc/intel_snb.c b/system/imc/intel_snb.c
+deleted file mode 100644
+index 20a1e12..0000000
+--- a/system/imc/intel_snb.c
++++ /dev/null
+@@ -1,93 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-// Copyright (C) 2004-2023 Sam Demeulemeester
+-//
+-// ------------------------
+-//
+-// Platform-specific code for Intel Sandy Bridge CPUs (SNB)
+-//
+-
+-#include "cpuinfo.h"
+-#include "memctrl.h"
+-#include "msr.h"
+-#include "pci.h"
+-
+-#include "imc.h"
+-
+-#define SNB_MMR_BASE_REG    0x48
+-#define SNB_REG_MAIN_CHAN0  0x5004
+-#define SNB_REG_MAIN_CHAN1  0x5008
+-#define SNB_REG_MCH_CFG     0x5E04
+-#define SNB_REG_TIMING      0x4000
+-
+-void get_imc_config_intel_snb(void)
+-{
+-    uint32_t mmio_reg, offset;
+-    uint32_t mch_cfg, reg0, reg1;
+-    float cpu_ratio, dram_ratio;
+-    uint32_t *ptr;
+-
+-    imc.type    = "DDR3";
+-    imc.tCL_dec = 0;
+-
+-    // Get Memory Mapped Register Base Address (Enable MMIO if needed)
+-    mmio_reg = pci_config_read32(0, 0, 0, SNB_MMR_BASE_REG);
+-
+-    if (!(mmio_reg & 0x1)) {
+-        pci_config_write32( 0, 0, 0, SNB_MMR_BASE_REG, mmio_reg | 1);
+-        mmio_reg = pci_config_read32(0, 0, 0, SNB_MMR_BASE_REG);
+-        if (!(mmio_reg & 0x1)) return;
+-    }
+-    mmio_reg &= 0xFFFFC000;
+-
+-    // Get DRAM Ratio
+-    ptr = (uint32_t*)((uintptr_t)mmio_reg + SNB_REG_MCH_CFG);
+-    mch_cfg = *ptr & 0xFFFF;
+-
+-    if ((mch_cfg >> 8) & 1) {
+-        dram_ratio = (float)(*ptr & 0x1F) * (100.0f / 100.0f);
+-    } else {
+-        dram_ratio = (float)(*ptr & 0x1F) * (133.34f / 100.0f);
+-    }
+-
+-    // Get CPU Ratio
+-    rdmsr(MSR_IA32_PLATFORM_INFO, reg0, reg1);
+-    cpu_ratio = (float)((reg0 >> 8) & 0xFF);
+-
+-    if (!cpu_ratio) return;
+-
+-    // Compute DRAM Frequency
+-    imc.freq = ((clks_per_msec / 1000) / cpu_ratio) * dram_ratio * 2;
+-
+-    if (imc.freq < 350 || imc.freq > 5000) {
+-        imc.freq = 0;
+-        return;
+-    }
+-
+-    // Get Main Memory Controller Register for both channels
+-    ptr = (uint32_t*)((uintptr_t)mmio_reg + SNB_REG_MAIN_CHAN0);
+-    reg0 = *ptr & 0xFFFF;
+-
+-    ptr = (uint32_t*)((uintptr_t)mmio_reg + SNB_REG_MAIN_CHAN1);
+-    reg1 = *ptr & 0xFFFF;
+-
+-    // Populate IMC width
+-    imc.width = (reg0 && reg1) ? 128 : 64;
+-
+-    // Define offset (chan A or B used)
+-    offset = reg0 ? 0x0 : 0x0400;
+-
+-    // Get Main timing register
+-    reg0 = *(uint32_t*)((uintptr_t)mmio_reg + offset + SNB_REG_TIMING);
+-
+-    // CAS Latency (tCAS)
+-    imc.tCL = (reg0 >> 8) & 0xF;
+-
+-    // RAS-To-CAS (tRCD)
+-    imc.tRCD = reg0 & 0xF;
+-
+-    // RAS Precharge (tRP)
+-    imc.tRP = (reg0 >> 4) & 0xF;
+-
+-    // RAS Active to precharge (tRAS)
+-    imc.tRAS = (reg0 >> 16) & 0xFF;
+-}
+diff --git a/system/memctrl.c b/system/memctrl.c
+deleted file mode 100644
+index 2fe59a0..0000000
+--- a/system/memctrl.c
++++ /dev/null
+@@ -1,66 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-// Copyright (C) 2004-2023 Sam Demeulemeester
+-//
+-// ------------------------
+-//
+-// Platform-specific code for IMC configuration, ECC support, etc.
+-//
+-
+-#include <stdbool.h>
+-
+-#include "config.h"
+-#include "cpuinfo.h"
+-
+-#include "memctrl.h"
+-#include "imc/imc.h"
+-
+-imc_info_t imc = {"UNDEF", 0, 0, 0, 0, 0, 0, 0, 0};
+-
+-ecc_info_t ecc_status = {false, ECC_ERR_NONE, 0, 0, 0, 0, 0};
+-
+-// ---------------------
+-// -- Public function --
+-// ---------------------
+-
+-void memctrl_init(void)
+-{
+-    ecc_status.ecc_enabled = false;
+-
+-    if (!enable_mch_read) {
+-        return;
+-    }
+-
+-    switch(imc.family) {
+-      case IMC_K17:
+-      case IMC_K19_VRM:
+-      case IMC_K19_RPL:
+-      case IMC_K19_RBT:
+-        get_imc_config_amd_zen();
+-        break;
+-      case IMC_SNB:
+-      case IMC_IVB:
+-        get_imc_config_intel_snb();
+-        break;
+-      case IMC_HSW:
+-        get_imc_config_intel_hsw();
+-        break;
+-      case IMC_SKL:
+-      case IMC_KBL:
+-        get_imc_config_intel_skl();
+-        break;
+-      case IMC_RKL:
+-        get_imc_config_intel_icl();
+-        break;
+-      case IMC_RPL:
+-      case IMC_ADL:
+-        get_imc_config_intel_adl();
+-        break;
+-      default:
+-        break;
+-    }
+-
+-    // Consistency check
+-    if (imc.tCL == 0 || imc.tRCD == 0 || imc.tRP == 0 || imc.tRCD == 0) {
+-        imc.freq = 0;
+-    }
+-}
+diff --git a/system/memctrl.h b/system/memctrl.h
+deleted file mode 100644
+index b27e3d9..0000000
+--- a/system/memctrl.h
++++ /dev/null
+@@ -1,57 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-#ifndef MEMCTRL_H
+-#define MEMCTRL_H
+-/**
+- * \file
+- *
+- * Provides information about the memory controller status
+- * (running DRAM configuration, ECC, ...) and other
+- * platform-specific data
+- *
+- *//*
+- * Copyright (C) 2004-2023 Sam Demeulemeester.
+- */
+-
+-typedef struct __attribute__((packed)) imc_infos {
+-    char        *type;
+-    uint16_t    family;
+-    uint16_t    freq;
+-    uint16_t    width;
+-    uint16_t    tCL;
+-    uint8_t     tCL_dec;
+-    uint16_t    tRCD;
+-    uint16_t    tRP;
+-    uint16_t    tRAS;
+-} imc_info_t;
+-
+-typedef enum {
+-    ECC_ERR_NONE,
+-    ECC_ERR_CORRECTED,
+-    ECC_ERR_UNCORRECTED
+-} ecc_error_type_t;
+-
+-typedef struct __attribute__((packed)) ecc_status {
+-    bool                ecc_enabled;
+-    ecc_error_type_t    err_type;
+-    uint64_t            err_adr;
+-    uint32_t            err_col;
+-    uint32_t            err_row;
+-    uint32_t            err_rank;
+-    uint32_t            err_bank;
+-} ecc_info_t;
+-
+-/**
+- * Current DRAM configuration of the Integrated Memory Controller
+- */
+-
+-extern imc_info_t imc;
+-
+-/**
+- * Current ECC Status of the Integrated Memory Controller
+- */
+-
+-extern ecc_info_t ecc_status;
+-
+-void memctrl_init(void);
+-
+-#endif // MEMCTRL_H
+diff --git a/system/msr.h b/system/msr.h
+index 4ef5a92..f4b98d8 100644
+--- a/system/msr.h
++++ b/system/msr.h
+@@ -17,7 +17,6 @@
+ #define MSR_IA32_PLATFORM_ID            0x17
+ #define MSR_IA32_APIC_BASE              0x1b
+ #define MSR_IA32_EBL_CR_POWERON         0x2a
+-#define MSR_IA32_PLATFORM_INFO          0xce
+ #define MSR_IA32_MCG_CTL                0x17b
+ #define MSR_IA32_PERF_STATUS            0x198
+ #define MSR_IA32_THERM_STATUS           0x19c
+diff --git a/system/pci.h b/system/pci.h
+index 1b6ecd4..3dccd89 100644
+--- a/system/pci.h
++++ b/system/pci.h
+@@ -86,9 +86,15 @@ void pci_config_write32(int bus, int dev, int func, int reg, uint32_t value);
+ void lpc_outb(uint8_t cmd, uint8_t data);
+ uint8_t lpc_inb(uint8_t reg);
+ 
++/*
++ * Add some SNM related function (S.DEMEULEMEESTER)
++ */
++
++#define SMN_SMUIO_THM               0x00059800
++#define SMN_THM_TCON_CUR_TMP        (SMN_SMUIO_THM + 0x00)
+ 
+ /**
+- * Read & Write to AMD SNM
++ * Read & Write to AMD Family 17h SNM
+  */
+ uint32_t amd_smn_read(uint32_t adr);
+ void amd_smn_write(uint32_t adr, uint32_t data);
+diff --git a/system/serial.c b/system/serial.c
+index 30776e9..a825318 100644
+--- a/system/serial.c
++++ b/system/serial.c
+@@ -1,5 +1,5 @@
+ // SPDX-License-Identifier: GPL-2.0
+-// Copyright (C) 2004-2023 Sam Demeulemeester
++// Copyright (C) 2004-2022 Sam Demeulemeester
+ 
+ #include <stdbool.h>
+ #include <stddef.h>
+@@ -101,21 +101,13 @@ void tty_init(void)
+     unsigned char lcr;
+ 
+     console_serial.enable       = true;
+-    console_serial.base_addr    = tty_address;
+-    console_serial.baudrate     = tty_baud_rate;
++    console_serial.is_mmio      = false;
+     console_serial.parity       = SERIAL_DEFAULT_PARITY;
+     console_serial.bits         = SERIAL_DEFAULT_BITS;
+-
+-    // UART MMIO Address is usually above TOLUD and never < 1MB
+-    if (console_serial.base_addr > 0xFFFF) {
+-        console_serial.is_mmio      = true;
+-        console_serial.reg_width    = tty_mmio_stride;
+-        console_serial.refclk       = tty_mmio_ref_clk;
+-    } else {
+-        console_serial.is_mmio      = false;
+-        console_serial.reg_width    = 1;
+-        console_serial.refclk       = UART_REF_CLK_IO;
+-    }
++    console_serial.baudrate     = tty_params_baud;
++    console_serial.reg_width    = 1;
++    console_serial.refclk       = UART_REF_CLK;
++    console_serial.base_addr    = serial_base_ports[tty_params_port];
+ 
+     /* read the Divisor Latch */
+     uart_status = serial_read_reg(&console_serial, UART_LCR);
+@@ -138,12 +130,6 @@ void tty_init(void)
+     uart_status = serial_read_reg(&console_serial, UART_RX);        /* COM? RBR */
+     serial_write_reg(&console_serial, UART_IER, 0x00);              /* Disable all interrupts */
+ 
+-    /* In case of MMIO UART, set up FIFO Reg */
+-    if (console_serial.is_mmio) {
+-        serial_write_reg(&console_serial, UART_FCR, 0x00);
+-        serial_write_reg(&console_serial, UART_FCR, (0xFF) & (UART_FCR_ENA | UART_FCR_THR));
+-    }
+-
+     tty_clear_screen();
+     tty_disable_cursor();
+ }
+diff --git a/system/serial.h b/system/serial.h
+index df5f97c..2b73078 100644
+--- a/system/serial.h
++++ b/system/serial.h
+@@ -7,9 +7,10 @@
+  * display via Serial/UART.
+  *
+  *//*
+- * Copyright (C) 2004-2023 Sam Demeulemeester.
++ * Copyright (C) 2004-2022 Sam Demeulemeester.
+  */
+ 
++#define SERIAL_DEFAULT_BAUDRATE 115200
+ #define SERIAL_DEFAULT_BITS     8
+ #define SERIAL_DEFAULT_PARITY   0
+ 
+@@ -18,7 +19,7 @@
+ #define SERIAL_PORT_0x3E8   2
+ #define SERIAL_PORT_0x2E8   3
+ 
+-static const uint16_t serial_io_ports[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
++static const uint16_t serial_base_ports[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
+ 
+ struct serial_port {
+     bool enable;
+@@ -48,8 +49,7 @@ struct serial_port {
+  * Definitions for the Base UART Registers
+  */
+ 
+-#define UART_REF_CLK_IO     1843200
+-#define UART_REF_CLK_MMIO   48000000
++#define UART_REF_CLK 1843200
+ 
+ #define UART_RX     0   /* In:  Receive buffer (DLAB=0) */
+ #define UART_TX     0   /* Out: Transmit buffer (DLAB=0) */
+@@ -103,12 +103,6 @@ struct serial_port {
+ #define UART_IIR_RDI    0x04    /* Receiver data interrupt */
+ #define UART_IIR_RLSI   0x06    /* Receiver line status interrupt */
+ 
+-/*
+- * Definitions for the FIFO Control Register
+- */
+-#define UART_FCR_ENA   0x01     /* FIFO Enable */
+-#define UART_FCR_THR   0x20     /* FIFO Threshold */
+-
+ /*
+  * Definitions for the Interrupt Enable Register
+  */
+diff --git a/system/smbus.c b/system/smbus.c
+index 0004595..46b1f8e 100644
+--- a/system/smbus.c
++++ b/system/smbus.c
+@@ -10,7 +10,6 @@
+ #include "string.h"
+ 
+ #include "cpuinfo.h"
+-#include "memctrl.h"
+ #include "smbus.h"
+ #include "smbios.h"
+ #include "jedec_id.h"
+@@ -1341,18 +1340,10 @@ static bool ich5_get_smb(void)
+ {
+     uint16_t x;
+ 
+-    // Enable SMBus IO Space if disabled
+-    x = pci_config_read16(0, smbdev, smbfun, 0x4);
+-
+-    if (!(x & 1)) {
+-        pci_config_write16(0, smbdev, smbfun, 0x4, x | 1);
+-    }
+-
+-    // Read Base Address
+     x = pci_config_read16(0, smbdev, smbfun, 0x20);
+     smbusbase = x & 0xFFF0;
+ 
+-    // Enable I2C Host Controller Interface if disabled
++    // Enable I2C Bus
+     uint8_t temp = pci_config_read8(0, smbdev, smbfun, 0x40);
+     if ((temp & 4) == 0) {
+         pci_config_write8(0, smbdev, smbfun, 0x40, temp | 0x04);
+@@ -1408,7 +1399,7 @@ static bool fch_zen_get_smb(void)
+     pm_reg |= __inb(AMD_DATA_IO_PORT);
+ 
+     // Special case for AMD Family 19h & Extended Model > 4 (get smb address in memory)
+-    if ((imc.family == IMC_K19_CZN || imc.family == IMC_K19_RPL) && pm_reg == 0xFFFF) {
++    if ((imc_type == IMC_K19_CZN || imc_type == IMC_K19_RPL) && pm_reg == 0xFFFF) {
+         smbusbase = ((*(const uint32_t *)(0xFED80000 + 0x300) >> 8) & 0xFF) << 8;
+         return true;
+     }
+diff --git a/system/temperature.c b/system/temperature.c
+index 6907511..89382ec 100644
+--- a/system/temperature.c
++++ b/system/temperature.c
+@@ -1,14 +1,23 @@
+ // SPDX-License-Identifier: GPL-2.0
+ // Copyright (C) 2020-2022 Martin Whitaker.
+ // Copyright (C) 2004-2023 Sam Demeulemeester.
++//
++// Derived from an extract of memtest86+ init.c:
++//
++// MemTest86+ V5 Specific code (GPL V2.0)
++// By Samuel DEMEULEMEESTER, sdemeule@memtest.org
++// http://www.canardpc.com - http://www.memtest.org
++// ------------------------------------------------
++// init.c - MemTest-86  Version 3.6
++//
++// Released under version 2 of the Gnu Public License.
++// By Chris Brady
+ 
+ #include <stdint.h>
+ 
+-#include "config.h"
+ #include "cpuid.h"
+ #include "cpuinfo.h"
+ #include "hwquirks.h"
+-#include "memctrl.h"
+ #include "msr.h"
+ #include "pci.h"
+ 
+@@ -32,17 +41,8 @@ void get_specific_TjMax(void)
+     // table according to their CPUID, PCI Root DID/VID or PNS.
+     // Trying to read the MSR 0x1A2 on some of them trigger a reboot.
+ 
++    // Yonah C0 Step (Pentium/Core Duo T2000 & Celeron M 200/400)
+     if (cpuid_info.version.raw[0] == 0x6E8) {
+-        // Yonah C0 Step (Pentium/Core Duo T2000 & Celeron M 200/400)
+-        TjMax = 100;
+-    } else if (imc.family == IMC_SLT || imc.family == IMC_CLT || imc.family == IMC_TNC) {
+-        // Atom Silverthorne / Diamondvile
+-        // Atom Clover Trail/Cloverview
+-        // Atom Tunnel Creek / Lincroft
+-        TjMax = 90;
+-    } else if (imc.family == IMC_CDT || imc.family == IMC_PNV) {
+-        // Atom Silverthorne / Diamondvile
+-        // Atom Cedar Trail/Cedarview
+         TjMax = 100;
+     }
+ }
+@@ -51,10 +51,6 @@ void temperature_init(void)
+ {
+     uint32_t regl, regh;
+ 
+-    if (!enable_temperature) {
+-        return;
+-    }
+-
+     // Process temperature-related quirks
+     if (quirk.type & QUIRK_TYPE_TEMP) {
+         quirk.process();
+diff --git a/system/temperature.h b/system/temperature.h
+index 0677fa8..f39c418 100644
+--- a/system/temperature.h
++++ b/system/temperature.h
+@@ -14,10 +14,6 @@
+ #define AMD_TEMP_REG_K8     0xE4
+ #define AMD_TEMP_REG_K10    0xA4
+ 
+-// Temp Registers on AMD ZEN System Management Network
+-#define SMN_SMUIO_THM               0x00059800
+-#define SMN_THM_TCON_CUR_TMP        (SMN_SMUIO_THM + 0x00)
+-
+ /**
+  * Global CPU Temperature offset
+  */
+diff --git a/system/timers.c b/system/timers.c
+index f78d39a..54794fa 100644
+--- a/system/timers.c
++++ b/system/timers.c
+@@ -18,6 +18,7 @@
+ 
+ #define PIT_TICKS_50mS      59659       // PIT clock is 1.193182MHz
+ #define APIC_TICKS_50mS     178977      // APIC clock is 3.579545MHz
++#define BENCH_MIN_START_ADR 0x1000000   // 16MB
+ 
+ //------------------------------------------------------------------------------
+ // Private Functions
+@@ -38,9 +39,6 @@ static void correct_tsc(void)
+ 
+         counter = inl(acpi_config.pm_addr);
+ 
+-        // Generate a dirty delay
+-        for(volatile uint8_t i=0; i<100u; i++);
+-
+         // Make sure counter is incrementing
+         if (inl(acpi_config.pm_addr) > counter) {
+ 
