@@ -673,3 +673,319 @@ $2 = (int *) 0x4290c0 <num_enabled_cpus>
 $3 = (test *) 0x429040 <test_struct>
 Error detected on fd 0
 error detected on stdin
++delete 1
++c
+
+Breakpoint 2, run_at (addr=4194304, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=4194304, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++p &acpi_config
+$1 = (acpi_t *) 0x29e60 <acpi_config>
++p &num_enabled_cpus
+$2 = (int *) 0x4290c0 <num_enabled_cpus>
++p &test_struct
+$3 = (test *) 0x429040 <test_struct>
++c
+Continuing.
+
+Breakpoint 2, run_at (addr=2101248, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=2101248, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++p &test_struct
+$4 = (test *) 0x429040 <test_struct>
++c
+Continuing.
+
+Breakpoint 2, run_at (addr=4194304, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=4194304, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++p $acpi_config
+$5 = void
++p acp
+$6 = 2272864
++p &acpi_config
+$7 = (acpi_t *) 0x29e60 <acpi_config>
++p/x acp
+$8 = 0x22ae60
++disassemble 0x22a040
+Dump of assembler code for function test_struct:
+   0x000000000022a040 <+0>:	add    %eax,(%rax)
+End of assembler dump.
++disassemble 0x29060
+No function contains specified address.
++disassemble 0x29e60
+Dump of assembler code for function acpi_config:
+   0x0000000000029e60 <+0>:	add    %al,(%rax)
+   0x0000000000029e62 <+2>:	add    %al,(%rax)
+   0x0000000000029e64 <+4>:	add    %al,(%rax)
+   0x0000000000029e66 <+6>:	add    %al,(%rax)
+   0x0000000000029e68 <+8>:	add    %al,(%rax)
+   0x0000000000029e6a <+10>:	add    %al,(%rax)
+   0x0000000000029e6c <+12>:	add    %al,(%rax)
+   0x0000000000029e6e <+14>:	add    %al,(%rax)
+   0x0000000000029e70 <+16>:	add    %al,(%rax)
+   0x0000000000029e72 <+18>:	add    %al,(%rax)
+   0x0000000000029e74 <+20>:	add    %al,(%rax)
+   0x0000000000029e76 <+22>:	add    %al,(%rax)
+   0x0000000000029e78 <+24>:	add    %al,(%rax)
+   0x0000000000029e7a <+26>:	add    %al,(%rax)
+   0x0000000000029e7c <+28>:	add    %al,(%rax)
+   0x0000000000029e7e <+30>:	add    %al,(%rax)
+   0x0000000000029e80 <+32>:	add    %al,(%rax)
+   0x0000000000029e82 <+34>:	add    %al,(%rax)
+   0x0000000000029e84 <+36>:	add    %al,(%rax)
+   0x0000000000029e86 <+38>:	add    %al,(%rax)
+   0x0000000000029e88 <+40>:	add    %al,(%rax)
+   0x0000000000029e8a <+42>:	add    %al,(%rax)
+End of assembler dump.
++p 0x29e60
+$9 = 171616
++p acpi_config
+$10 = {ver_maj = 0 '\000', ver_min = 0 '\000', rsdp_addr = 0, madt_addr = 0, fadt_addr = 0, hpet_addr = 0, pm_addr = 0, pm_is_io = false}
++disassemble 0x22ae60
+No function contains specified address.
+warning: Error detected on fd 0
+error detected on stdin
++delete 1
++c
+
+Breakpoint 2, run_at (addr=4194304, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=4194304, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++p &acpi_config
+$1 = (acpi_t *) 0x29e60 <acpi_config>
++p &num_enabled_cpus
+$2 = (int *) 0x4290c0 <num_enabled_cpus>
++p &test_struct
+$3 = (test *) 0x429040 <test_struct>
++n
++n
++n
+warning: Error detected on fd 0
+error detected on stdin
++delete 1
++c
+
+Breakpoint 2, run_at (addr=4194304, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=4194304, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++p &acpi_config
+$1 = (acpi_t *) 0x29e60 <acpi_config>
++p &num_enabled_cpus
+$2 = (int *) 0x4290c0 <num_enabled_cpus>
++p &test_struct
+$3 = (test *) 0x429040 <test_struct>
++n
++n
++n
+warning: Error detected on fd 0
+error detected on stdin
++delete 1
++c
+
+Breakpoint 2, run_at (addr=4194304, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=4194304, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++p &acpi_config
+$1 = (acpi_t *) 0x429060 <acpi_config>
++p &num_enabled_cpus
+$2 = (int *) 0x429100 <num_enabled_cpus>
++p &test_struct
+$3 = (test *) 0x429040 <test_struct>
++n
++c
+Continuing.
+
+Breakpoint 2, run_at (addr=2101248, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=2101248, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++n
++n
++n
++p acpi_config
+$4 = {ver_maj = 2 '\002', ver_min = 0 '\000', rsdp_addr = 129490964, madt_addr = 129470464, fadt_addr = 129474560, hpet_addr = 129466368, pm_addr = 45064, pm_is_io = true}
+warning: Error detected on fd 0
+error detected on stdin
++delete 1
++c
+
+Breakpoint 2, run_at (addr=4194304, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=4194304, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++p &acpi_config
+$1 = (acpi_t *) 0x429060 <acpi_config>
++p &num_enabled_cpus
+$2 = (int *) 0x429100 <num_enabled_cpus>
++p &test_struct
+$3 = (test *) 0x429040 <test_struct>
++c
+Continuing.
+
+Breakpoint 2, run_at (addr=2101248, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=2101248, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++n
++n
++n
++n
+warning: Error detected on fd 0
+error detected on stdin
++delete 1
++c
+
+Breakpoint 2, run_at (addr=4194304, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=4194304, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++p &acpi_config
+$1 = (acpi_t *) 0x429060 <acpi_config>
++p &num_enabled_cpus
+$2 = (int *) 0x429100 <num_enabled_cpus>
++p &test_struct
+$3 = (test *) 0x429040 <test_struct>
++n
++n
++n
++n
++p acpi_config
+$4 = {ver_maj = 0 '\000', ver_min = 0 '\000', rsdp_addr = 0, madt_addr = 0, fadt_addr = 0, hpet_addr = 0, pm_addr = 0, pm_is_io = false}
++c
+Continuing.
+
+Breakpoint 2, run_at (addr=2101248, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=2101248, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++n
++n
++n
++n
++p acpi_config
+$5 = {ver_maj = 2 '\002', ver_min = 0 '\000', rsdp_addr = 129490964, madt_addr = 129470464, fadt_addr = 129474560, hpet_addr = 129466368, pm_addr = 45064, pm_is_io = true}
+warning: Error detected on fd 0
+error detected on stdin
++delete 1
++c
+
+Breakpoint 2, run_at (addr=4194304, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=4194304, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++p &acpi_config
+$1 = (acpi_t *) 0x429060 <acpi_config>
++p &num_enabled_cpus
+$2 = (int *) 0x429100 <num_enabled_cpus>
++p &test_struct
+$3 = (test *) 0x429040 <test_struct>
+warning: Error detected on fd 0
+error detected on stdin
++delete 1
++c
+
+Breakpoint 2, run_at (addr=4194304, my_cpu=my_cpu@entry=0) at ../app/main.c:152
++n
+run_at (addr=4194304, my_cpu=0) at ../app/main.c:153
++n
++n
++n
++n
++n
++n
++n
++p &acpi_config
+$1 = (acpi_t *) 0x22a060 <acpi_config>
++p &num_enabled_cpus
+$2 = (int *) 0x22a100 <num_enabled_cpus>
++p &test_struct
+$3 = (test *) 0x22a040 <test_struct>
++n
++n
++n
++n
++p &acpi_config
+$4 = (acpi_t *) 0x22a060 <acpi_config>
++p acpi_config
+$5 = {ver_maj = 2 '\002', ver_min = 0 '\000', rsdp_addr = 129490964, madt_addr = 129470464, fadt_addr = 129474560, hpet_addr = 129466368, pm_addr = 45064, pm_is_io = true}
+warning: Error detected on fd 0
+error detected on stdin

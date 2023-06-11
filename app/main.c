@@ -159,6 +159,10 @@ static void run_at(uintptr_t addr, int my_cpu)
     printf(17, 0, "%x", (uintptr_t)(acp));
     printf(18, 0, "%x", (uintptr_t)(&num_enabled_cpus));
     printf(19, 0, "%x", (uintptr_t)(&test_struct));
+    printf(20, 0, "rsdp_addr hex: %x", (uintptr_t)(acpi_config.rsdp_addr));
+    printf(21, 0, "rsdp_addr dez: %i", (uintptr_t)(acpi_config.rsdp_addr));
+    printf(22, 0, "ver_maj: %i", (uintptr_t)(acpi_config.ver_maj));
+    printf(23, 0, "ver_min: %i", (uintptr_t)(acpi_config.ver_min));
 
     if (my_cpu == 0) {
         // Copy the program code and all data except the stacks.
