@@ -144,7 +144,7 @@ Init() {
 
     printf -v OFFSET "0x%X" $(($IMAGEBASE + $BASEOFCODE))
     printf -v DATAOFFSET "0x%X" $(($IMAGEBASE + $BASEOFCODE + $DATA))
-    printf -v RELOCDATA "0x%X" $(($ERLOCADDR + $DATA))
+    printf -v RELOCDATA "0x%X" $(($RELOCADDR + $DATA))
 
     GDB_FILE="gdbscript"
 
