@@ -131,7 +131,7 @@ lib/%.o: ../lib/%.c
 
 tests/%.o: ../tests/%.c
 	@mkdir -p tests
-	$(CC) -c $(CFLAGS) -O3 $(INC_DIRS)  -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
+	$(CC) -c $(CFLAGS) $(OPT_FAST) $(INC_DIRS)  -o $@ $< -MMD -MP -MT $@ -MF $(@:.o=.d)
 
 app/%.o: ../app/%.c app/build_version.h
 	@mkdir -p app
