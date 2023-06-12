@@ -8,7 +8,7 @@
 *.o
 
 # Generated files
-githash.h
+build_version.h
 gdbscript
 memtest_shared_debug.lds
 
