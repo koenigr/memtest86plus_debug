@@ -552,6 +552,13 @@ void main(void)
     }
 #endif
 
+    prints(16, 5, "Hello Memtest!");
+    prints(17, 5, "Hello Memtest!");
+    prints(18, 5, "Hello Memtest!");
+    prints(19, 5, "Hello Memtest!");
+    prints(20, 5, "Hello Memtest!");
+    while(1);
+
     // Due to the need to relocate ourselves in the middle of tests, the following
     // code cannot be written in the natural way as a set of nested loops. So we
     // have a single loop and use global state variables to allow us to restart

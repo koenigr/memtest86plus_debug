@@ -32,17 +32,6 @@ void reverse(char s[])
 // Public Functions
 //------------------------------------------------------------------------------
 
-#ifdef DEBUG_GDB
-void *memcpy (void *dest, const void *src, size_t len)
-{
-    char *d = dest;
-    const char *s = src;
-    while (len--)
-        *d++ = *s++;
-    return dest;
-}
-#endif
-
 void *memmove(void *dest, const void *src, size_t n)
 {
     char *d = (char *)dest, *s = (char *)src;
